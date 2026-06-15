@@ -1,0 +1,7 @@
+
+app.get("/equity/available", (req, res) => {})
+app.get("/positions/open/:marketId", (req, res) => {});
+app.get("/positions/closed/:marketId", (req, res) => {});  // need to think for this;
+app.get("/orders/open/:marketId", (req, res) => {})
+app.get("/orders/:marketId", (req, res) => {}) // what i thought it should resturn all the ordes for that market;
+app.get("/fills", (req, res) => {}); // this will come form the database;

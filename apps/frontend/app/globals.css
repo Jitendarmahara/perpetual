@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design tokens (space-separated RGB channels for Tailwind opacity support) ─── */
+:root {
+  --color-lime:      233 252 80;
+  --color-lime-fg:   11  14  17;
+  --color-bull:      2   192 118;
+  --color-bear:      248 73  96;
+  --color-surface:   20  26  34;
+  --color-surface-2: 30  40  52;
+  --color-border:    36  48  63;
+  --color-input:     15  23  34;
+  --color-muted-fg:  132 142 156;
+}
+
+/* ─── Base layer ─── */
+@layer base {
+  html, body {
+    background-color: #0b0e11;
+    color: #f5f6f7;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(233, 252, 80, 0.06), transparent 45%),
+      radial-gradient(circle at 85% 90%, rgba(2, 192, 118, 0.05), transparent 45%);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ─── Custom utilities ─── */
+@layer utilities {
+  .glass {
+    background: rgba(20, 26, 34, 0.7);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(36, 48, 63, 0.6);
+  }
+
+  .glow-lime {
+    box-shadow:
+      0 0 0 1px rgba(233, 252, 80, 0.3),
+      0 10px 40px -10px rgba(233, 252, 80, 0.45);
+  }
+
+  .grid-bg {
+    background-image:
+      linear-gradient(to right, rgba(36, 48, 63, 0.4) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(36, 48, 63, 0.4) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+}
+
+/* ─── Scrollbars ─── */
+::-webkit-scrollbar        { width: 4px; height: 4px; }
+::-webkit-scrollbar-track  { background: #0b0e11; }
+::-webkit-scrollbar-thumb  { background: #24303f; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #2d3b4e; }
+
+/* ─── Animations ─── */
+@keyframes pulse-green {
+  0%, 100% { background-color: rgba(2, 192, 118, 0); }
+  50%       { background-color: rgba(2, 192, 118, 0.15); }
+}
+@keyframes pulse-red {
+  0%, 100% { background-color: rgba(248, 73, 96, 0); }
+  50%       { background-color: rgba(248, 73, 96, 0.15); }
+}
+.flash-green { animation: pulse-green 0.3s ease-out; }
+.flash-red   { animation: pulse-red   0.3s ease-out; }
+
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-ticker { animation: ticker 40s linear infinite; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.animate-pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn { animation: fadeIn 0.2s ease-out; }

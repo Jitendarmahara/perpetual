@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User{
+  id  String @id @default(uuid())
+  username String @unique
+  password String 
+  name  String ?
+  role Role
+  orders Orders[]
+  maker_fills Fills[] @relation("usermaker")
+  taker_fills Fills [] @relation("usertaker")
+}
+
+model Orders{
+  id String @id @default(uuid())
+  userId String
+  type Type
+  price String
+  qty String
+  filledqty Int @default(0)
+  status Status
+  side Side
+  createdAt DateTime @default(now())
+  marketId  String
+  maker_fills Fills[] @relation("maker")
+  taker_fills Fills[] @relation("taker")
+  user User @relation(fields: [userId] , references: [id]) 
+  market Market @relation(fields: [marketId] , references: [ id])
+  @@index([side , marketId , status])
+}
+model Fills{
+  id String @id @default(uuid())
+  maker_id String
+  taker_id String
+  price String
+  qty String
+  maker_order_id String
+  taker_order_id String
+  marketId String
+  maker_order Orders @relation("maker" , fields: [maker_order_id] , references: [id])
+  taker_order Orders @relation("taker" , fields: [taker_order_id] , references: [id])
+  maker_user User @relation("usermaker" , fields: [maker_id] , references: [id])
+  taker_user User @relation("usertaker" , fields: [taker_id] , references: [id])
+  market Market @relation(fields: [marketId] , references: [id])
+  createdAt DateTime @default(now())
+
+}
+// what all market we support 
+model Market{
+  id String @id @default(uuid())
+  market_slug String @unique
+  order Orders[]
+  fills Fills []
+}
+// static types for the model
+enum Status{
+  OPEN
+  PARTIALLY_FILLED
+  FILLED
+  CANCELLED
+}
+enum Type{
+  Limit
+  Market
+}
+
+enum Side{
+  LONG
+  SHORT
+}
+enum Role{
+  Admin
+  User
+}
