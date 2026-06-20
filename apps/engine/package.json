@@ -1,0 +1,23 @@
+{
+  "name": "@repo/engine",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun index.ts",
+    "simulate:markets": "bun market_simulator.ts",
+    "dummy:depth": "bun dummy_depth_orders.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@repo/db": "*",
+    "@repo/redis_data":"*"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "@repo/db" :"workspace:*"
+  }
+}
