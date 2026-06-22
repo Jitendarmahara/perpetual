@@ -25,41 +25,6 @@ const INTERVAL_SEC: Record<Timeframe, number> = {
   "1D":  86_400,
 };
 
-const SEED_COUNT = 80;
-
-const MARKET_BASE: Record<string, number> = {
-  BTC_USDC: 96420,
-  ETH_USDC: 3120,
-  SOL_USDC: 22.45,
-};
-
-function buildSeedCandles(basePrice: number, intervalSec: number): Candle[] {
-  const now = Math.floor(Date.now() / 1000);
-  const alignedNow = Math.floor(now / intervalSec) * intervalSec;
-  const dp = basePrice >= 1000 ? 2 : basePrice >= 10 ? 3 : 4;
-  let price = basePrice * (0.994 + Math.random() * 0.012);
-  const out: Candle[] = [];
-
-  for (let i = SEED_COUNT - 1; i >= 0; i--) {
-    const time = alignedNow - i * intervalSec;
-    const vol = price * (0.0006 + Math.random() * 0.0008);
-    const open = price;
-    const close = price + (Math.random() - 0.49) * vol;
-    const high = Math.max(open, close) + Math.random() * vol * 0.4;
-    const low = Math.min(open, close) - Math.random() * vol * 0.4;
-    price = close;
-    out.push({
-      time,
-      open: Number(open.toFixed(dp)),
-      high: Number(high.toFixed(dp)),
-      low: Number(low.toFixed(dp)),
-      close: Number(close.toFixed(dp)),
-      volume: Math.floor(80 + Math.random() * 600),
-    });
-  }
-  return out;
-}
-
 interface CandleChartProps {
   market: string;
   lastTradedPrice: number;
@@ -71,6 +36,7 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
   const chartRef     = useRef<IChartApi | null>(null);
   const seriesRef    = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const candlesRef   = useRef<Candle[]>([]);
+  const seededRef    = useRef(false);
   const [timeframe, setTimeframe] = useState<Timeframe>("1m");
 
   // Create chart once
@@ -126,33 +92,43 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
     };
   }, []);
 
-  // Re-seed on market or timeframe change
+  // Clear the chart on market/timeframe change — no fabricated history to
+  // replace it with, real candles build up from here as real trades happen.
   useEffect(() => {
-    if (!seriesRef.current || !chartRef.current) return;
-
-    const base    = lastTradedPrice || MARKET_BASE[market] || 100;
-    const candles = buildSeedCandles(base, INTERVAL_SEC[timeframe]);
-    candlesRef.current = candles;
-
-    const data: CandlestickData[] = candles.map((c) => ({
-      time:  c.time as UTCTimestamp,
-      open:  c.open,
-      high:  c.high,
-      low:   c.low,
-      close: c.close,
-    }));
-
-    seriesRef.current.setData(data);
-
-    const len = candles.length;
-    chartRef.current.timeScale().setVisibleLogicalRange({
-      from: Math.max(0, len - 60),
-      to:   len + 6,
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!seriesRef.current) return;
+    candlesRef.current = [];
+    seededRef.current = false;
+    seriesRef.current.setData([]);
   }, [market, timeframe]);
 
-  // Live tick update
+  // Seed exactly one real data point as soon as we know the real current
+  // price, so the chart isn't blank — everything after this is built from
+  // actual trade ticks, nothing is fabricated.
+  useEffect(() => {
+    if (!seriesRef.current || seededRef.current || lastTradedPrice <= 0) return;
+    seededRef.current = true;
+
+    const intervalSec = INTERVAL_SEC[timeframe];
+    const time = Math.floor(Date.now() / 1000 / intervalSec) * intervalSec;
+    const candle: Candle = {
+      time,
+      open: lastTradedPrice,
+      high: lastTradedPrice,
+      low: lastTradedPrice,
+      close: lastTradedPrice,
+      volume: 0,
+    };
+    candlesRef.current = [candle];
+    seriesRef.current.setData([{
+      time: time as UTCTimestamp,
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+    }]);
+  }, [lastTradedPrice, timeframe]);
+
+  // Live tick update — builds real candles from real fills as they happen
   useEffect(() => {
     if (!lastTrade || !seriesRef.current || candlesRef.current.length === 0) return;
 
@@ -203,10 +179,12 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
           {market.replace("_", "-")}
         </span>
         <span className="text-xs font-mono text-muted-foreground">
-          {lastTradedPrice.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 4,
-          })}
+          {lastTradedPrice > 0
+            ? lastTradedPrice.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 4,
+              })
+            : "—"}
         </span>
 
         <div className="flex items-center gap-1 ml-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { ApiError, apiRequest, authHeaders, getApiErrorMessage } from "../api";
 import { API_ROUTES } from "../config";
 import { toNumber, normalizeOrderSide } from "../utils/trading";
@@ -47,9 +47,31 @@ export function useTrading(
   const [orderLoading, setOrderLoading] = useState(false);
   const [onrampLoading, setOnrampLoading] = useState(false);
 
+  const messageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
+  }, []);
+
   const clearMessages = () => {
+    if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
     setError(null);
     setInfoMessage(null);
+  };
+
+  // Every banner (success or error) auto-dismisses after a few seconds
+  // instead of sitting on screen until the next action clears it.
+  const MESSAGE_TTL_MS = 5000;
+  const showInfo = (msg: string) => {
+    if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
+    setError(null);
+    setInfoMessage(msg);
+    messageTimeoutRef.current = setTimeout(() => setInfoMessage(null), MESSAGE_TTL_MS);
+  };
+  const showError = (msg: string) => {
+    if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
+    setInfoMessage(null);
+    setError(msg);
+    messageTimeoutRef.current = setTimeout(() => setError(null), MESSAGE_TTL_MS);
   };
 
   const fetchUserData = useCallback(async () => {
@@ -165,10 +187,10 @@ export function useTrading(
           headers: { "Content-Type": "application/json", ...authHeaders(token) },
           body: JSON.stringify({ market: selectedMarket, qty, leverage, price, side, ordertype: orderType }),
         });
-        setInfoMessage(`Successfully placed ${side} ${orderType} order!`);
+        showInfo(`Successfully placed ${side} ${orderType} order!`);
         onSuccess();
       } catch (err) {
-        if (!handleApiAuthError(err)) setError(getApiErrorMessage(err, "Failed to place order."));
+        if (!handleApiAuthError(err)) showError(getApiErrorMessage(err, "Failed to place order."));
       } finally {
         setOrderLoading(false);
       }
@@ -187,7 +209,7 @@ export function useTrading(
       if (!token) { signout(); return; }
       setOrderLoading(true);
       try {
-        await apiRequest(API_ROUTES.order, {
+        const result = await apiRequest<{ executedqty?: number }>(API_ROUTES.order, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...authHeaders(token) },
           body: JSON.stringify({
@@ -199,10 +221,20 @@ export function useTrading(
             ordertype: "Market",
           }),
         });
-        setInfoMessage(`Position closed.`);
+        // For Market orders the engine's own remaningqty is measured against
+        // available liquidity, not our original request, so it's always 0
+        // even on a partial fill — compare executedqty against what we asked
+        // for instead.
+        const executed = result.executedqty ?? 0;
+        const shortfall = qty - executed;
+        showInfo(
+          shortfall > 1e-9
+            ? `Position partially closed — ${shortfall} still open (not enough resting liquidity to fill the rest).`
+            : "Position closed.",
+        );
         onSuccess();
       } catch (err) {
-        if (!handleApiAuthError(err)) setError(getApiErrorMessage(err, "Failed to close position."));
+        if (!handleApiAuthError(err)) showError(getApiErrorMessage(err, "Failed to close position."));
       } finally {
         setOrderLoading(false);
       }
@@ -210,20 +242,24 @@ export function useTrading(
     [handleApiAuthError, selectedMarket, signout, token],
   );
 
+  const [cancelLoading, setCancelLoading] = useState(false);
   const cancelOrder = useCallback(
     async (orderId: string, onSuccess: () => void) => {
       clearMessages();
       if (!token) { signout(); return; }
+      setCancelLoading(true);
       try {
         await apiRequest(API_ROUTES.cancel, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...authHeaders(token) },
           body: JSON.stringify({ market: selectedMarket, orderId }),
         });
-        setInfoMessage("Order cancelled successfully.");
+        showInfo("Order cancelled successfully.");
         onSuccess();
       } catch (err) {
-        if (!handleApiAuthError(err)) setError(getApiErrorMessage(err, "Failed to cancel order."));
+        if (!handleApiAuthError(err)) showError(getApiErrorMessage(err, "Failed to cancel order."));
+      } finally {
+        setCancelLoading(false);
       }
     },
     [handleApiAuthError, selectedMarket, signout, token],
@@ -240,10 +276,10 @@ export function useTrading(
           headers: { "Content-Type": "application/json", ...authHeaders(token) },
           body: JSON.stringify({ amount }),
         });
-        setInfoMessage(`Successfully deposited $${amount} demo funds!`);
+        showInfo(`Successfully deposited $${amount} demo funds!`);
         onSuccess();
       } catch (err) {
-        if (!handleApiAuthError(err)) setError(getApiErrorMessage(err, "Onramp failed."));
+        if (!handleApiAuthError(err)) showError(getApiErrorMessage(err, "Onramp failed."));
       } finally {
         setOnrampLoading(false);
       }
@@ -260,6 +296,7 @@ export function useTrading(
     closePosition,
     infoMessage,
     orderLoading,
+    cancelLoading,
     onrampLoading,
     fetchUserData,
     placeOrder,

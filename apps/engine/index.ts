@@ -153,8 +153,11 @@ async function processMessage(parsed: any) {
       type: Type.CANCLE_ORDER,
       success: result.success,
       orderId: data.orderId,
+      market: data.market,
       data: result.data,
       error: result.error,
+      bids: "side" in result && result.side === "bid" ? [[result.price.toString(), result.remainingQty.toString()]] : undefined,
+      asks: "side" in result && result.side === "ask" ? [[result.price.toString(), result.remainingQty.toString()]] : undefined,
       loopbackid: data.loopbackid,
     });
   } else if (parsed.type === Type.GET_ORDER) {

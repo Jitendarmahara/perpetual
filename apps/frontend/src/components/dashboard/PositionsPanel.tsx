@@ -10,6 +10,10 @@ interface PositionsPanelProps {
   fills: Fill[];
   selectedMarket: string;
   lastTradedPrice: number;
+  error: string | null;
+  infoMessage: string | null;
+  closeLoading: boolean;
+  cancelLoading: boolean;
   onCancelOrder: (orderId: string) => void;
   onClosePosition: (pos: Position) => void;
   onRefresh: () => void;
@@ -42,6 +46,10 @@ export function PositionsPanel({
   fills,
   selectedMarket,
   lastTradedPrice,
+  error,
+  infoMessage,
+  closeLoading,
+  cancelLoading,
   onCancelOrder,
   onClosePosition,
   onRefresh,
@@ -81,6 +89,17 @@ export function PositionsPanel({
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {error && (
+        <div className="mx-4 mt-2 p-2.5 bg-bear/10 border border-bear/20 rounded-xl text-xs text-bear animate-fadeIn shrink-0">
+          ⚠️ {error}
+        </div>
+      )}
+      {infoMessage && (
+        <div className="mx-4 mt-2 p-2.5 bg-bull/10 border border-bull/20 rounded-xl text-xs text-bull animate-fadeIn shrink-0">
+          ✅ {infoMessage}
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto bg-[#0b0e11]/30">
         {/* Positions tab */}
@@ -148,7 +167,8 @@ export function PositionsPanel({
                         <td className="px-4 py-2.5 text-right">
                           <button
                             onClick={() => onClosePosition(pos)}
-                            className="text-xs bg-bear/10 hover:bg-bear text-bear hover:text-white px-2.5 py-1 rounded-lg cursor-pointer font-semibold transition-all"
+                            disabled={closeLoading}
+                            className="text-xs bg-bear/10 hover:bg-bear text-bear hover:text-white px-2.5 py-1 rounded-lg cursor-pointer font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Close
                           </button>
@@ -204,7 +224,8 @@ export function PositionsPanel({
                       <td className="px-4 py-2.5 text-right">
                         <button
                           onClick={() => onCancelOrder(ord.id)}
-                          className="text-xs bg-bear/10 hover:bg-bear text-bear hover:text-white px-2.5 py-1 rounded-lg cursor-pointer font-semibold transition-all"
+                          disabled={cancelLoading}
+                          className="text-xs bg-bear/10 hover:bg-bear text-bear hover:text-white px-2.5 py-1 rounded-lg cursor-pointer font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Cancel
                         </button>

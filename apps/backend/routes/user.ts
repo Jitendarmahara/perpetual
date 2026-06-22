@@ -223,6 +223,54 @@ const getDepthHandler = async (req: Request, res: Response) => {
 router.get("/depth", getDepthHandler);
 router.get("/get_depth", getDepthHandler);
 
+const getStatsHandler = async (req: Request, res: Response) => {
+  const market = (req.query.market as string) || (req.body.market as string);
+  if (!market) {
+    return res.status(400).json({
+      success: false,
+      error: "Missing required parameter: market",
+    });
+  }
+
+  try {
+    const marketRecord = await client.market.findUnique({ where: { market_slug: market } });
+    if (!marketRecord) {
+      return res.json({ success: true, high24h: null, low24h: null, volume24h: 0, change24h: 0 });
+    }
+
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const fills = await client.fills.findMany({
+      where: { marketId: marketRecord.id, createdAt: { gte: since } },
+      orderBy: { createdAt: "asc" },
+      select: { price: true, qty: true },
+    });
+
+    if (fills.length === 0) {
+      return res.json({ success: true, high24h: null, low24h: null, volume24h: 0, change24h: 0 });
+    }
+
+    const openPrice = Number(fills[0]!.price);
+    const lastPrice = Number(fills[fills.length - 1]!.price);
+    let high24h = -Infinity;
+    let low24h = Infinity;
+    let volume24h = 0;
+    for (const fill of fills) {
+      const price = Number(fill.price);
+      const qty = Number(fill.qty);
+      high24h = Math.max(high24h, price);
+      low24h = Math.min(low24h, price);
+      volume24h += price * qty;
+    }
+    const change24h = openPrice > 0 ? ((lastPrice - openPrice) / openPrice) * 100 : 0;
+
+    return res.json({ success: true, high24h, low24h, volume24h, change24h });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+};
+
+router.get("/stats", getStatsHandler);
+
 const getPositionHandler = async (req: AuthRequest, res: Response) => {
   const market = (req.query.market as string) || (req.body.market as string);
   if (!market) {

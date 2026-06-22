@@ -30,7 +30,7 @@ async function EventsListener() {
   while (true) {
     const response = (await redis_client.xRead(
       [{ key: "events_stream", id: lastId }],
-      { BLOCK: 500 },
+      { BLOCK: 0},
     )) as StreamResponse | null;
 
     if (!response) continue;
@@ -39,6 +39,9 @@ async function EventsListener() {
       for (const msg of stream.messages) {
         lastId = msg.id;
         const data = JSON.parse(msg.message.data!);
+        if (typeof data.loopbackid !== "string") {
+          continue;
+        }
 
         const resolve = resolveMap.get(data.loopbackid);
         if (resolve) {

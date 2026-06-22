@@ -117,7 +117,7 @@ async function saveFillEvent(event: FillEvent) {
 
   for (const fill of event.fills) {
     const marketId = await marketIdFor(fill.marketId); // the market id her is slug name of that market only;
-
+// update with prisma transaction
     await client.fills.upsert({
       where: { id: fill.id },
       update: {},

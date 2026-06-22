@@ -6,6 +6,8 @@ import type { Balance, OrderType, Side } from "../../types/trading";
 interface OrderFormProps {
   market: string;
   lastTradedPrice: number;
+  bestBid: number;
+  bestAsk: number;
   balance: Balance;
   error: string | null;
   infoMessage: string | null;
@@ -22,6 +24,8 @@ interface OrderFormProps {
 export function OrderForm({
   market,
   lastTradedPrice,
+  bestBid,
+  bestAsk,
   balance,
   error,
   infoMessage,
@@ -35,9 +39,13 @@ export function OrderForm({
   const [qtyInput, setQtyInput] = useState("10");
 
   const baseAsset = market.split("_")[0] ?? market;
+  const isLong = orderSide === "LONG";
+  // What you'd actually transact at right now: best ask to buy, best bid to
+  // sell. Falls back to the last trade price if that side of the book is empty.
+  const marketPrice = (isLong ? bestAsk : bestBid) || lastTradedPrice;
   const limitPrice = orderType === "Limit" ? Number(priceInput) : null;
   const currentPrice =
-    orderType === "Market" ? lastTradedPrice : Number(priceInput) || lastTradedPrice;
+    orderType === "Market" ? marketPrice : Number(priceInput) || marketPrice;
   const orderValue = currentPrice * (Number(qtyInput) || 0);
   const marginRequired = orderValue / leverage;
 
@@ -49,14 +57,12 @@ export function OrderForm({
   };
 
   const applyPct = (pct: number) => {
-    const p = orderType === "Limit" ? Number(priceInput) : lastTradedPrice;
+    const p = orderType === "Limit" ? Number(priceInput) : marketPrice;
     if (p > 0) {
       const maxQty = (balance.available * leverage * (pct / 100)) / p;
       setQtyInput(Number(maxQty.toFixed(1)).toString());
     }
   };
-
-  const isLong = orderSide === "LONG";
 
   return (
     <div className="bg-surface/20 border-t border-border p-4 flex flex-col shrink-0">
@@ -107,6 +113,15 @@ export function OrderForm({
           ✅ {infoMessage}
         </div>
       )}
+
+      <div className="flex justify-between items-center mb-3 text-xs">
+        <span className="text-muted-foreground">
+          {isLong ? "Buy price (best ask)" : "Sell price (best bid)"}
+        </span>
+        <span className={`font-mono font-bold ${isLong ? "text-bull" : "text-bear"}`}>
+          {marketPrice > 0 ? `$${marketPrice.toFixed(2)}` : "—"}
+        </span>
+      </div>
 
       <div className="space-y-3 text-xs mb-4">
         {/* Price input (Limit only) */}

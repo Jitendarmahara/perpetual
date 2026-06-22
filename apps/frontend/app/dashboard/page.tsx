@@ -126,7 +126,7 @@ export default function Dashboard() {
         selectedMarket={selectedMarket}
         onMarketChange={setSelectedMarket}
         markPrice={market.markPrice}
-        priceChange24h={3.8}
+        priceChange24h={market.priceChange24h}
         priceHigh24h={market.priceHigh24h}
         priceLow24h={market.priceLow24h}
         volume24h={market.volume24h}
@@ -151,6 +151,10 @@ export default function Dashboard() {
             fills={trading.fills}
             selectedMarket={selectedMarket}
             lastTradedPrice={market.lastTradedPrice}
+            error={trading.error}
+            infoMessage={trading.infoMessage}
+            closeLoading={trading.orderLoading}
+            cancelLoading={trading.cancelLoading}
             onCancelOrder={handleCancelOrder}
             onClosePosition={handleClosePosition}
             onRefresh={trading.fetchUserData}
@@ -171,6 +175,8 @@ export default function Dashboard() {
           <OrderForm
             market={selectedMarket}
             lastTradedPrice={market.lastTradedPrice}
+            bestBid={market.bids[0]?.price ?? 0}
+            bestAsk={market.asks[market.asks.length - 1]?.price ?? 0}
             balance={trading.balance}
             error={trading.error}
             infoMessage={trading.infoMessage}

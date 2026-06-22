@@ -127,6 +127,25 @@ async function startBroadcaster() {
               );
             }
           }
+
+          if (data.type === Type.CANCLE_ORDER && data.success) {
+            const marketId = data.market as string;
+            if (marketId && (data.bids || data.asks)) {
+              await redisClient.publish(
+                `depth.${marketId}`,
+                JSON.stringify({
+                  stream: `depth.${marketId}`,
+                  data: {
+                    e: "depth",
+                    E: Date.now(),
+                    s: marketId,
+                    b: data.bids || [],
+                    a: data.asks || [],
+                  },
+                }),
+              );
+            }
+          }
         }
       }
     } catch (error) {

@@ -168,6 +168,7 @@ export function CreateOrder(
         };
       }
       for (const restingorder of order.openOrders) {
+        if (restingorder.userId === userId) continue; // no self-trading
         const minfilled = Math.min(
           qty - totalfilledavaliable,
           restingorder.qty - restingorder.filledQty,
@@ -266,6 +267,7 @@ export function CreateOrder(
       if (executedqty >= lockqty) {
         break;
       }
+      if (restingorder.userId === userId) continue; // no self-trading
       const minfilled = Math.min(
         lockqty - executedqty,
         restingorder.qty - restingorder.filledQty,

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Wallet, PlusCircle, LogOut, TrendingUp, TrendingDown } from "lucide-react";
 import type { WsStatus } from "../../types/trading";
 import { SUPPORTED_MARKETS } from "../../types/trading";
@@ -60,9 +61,22 @@ export function Header({
   onSignout,
 }: HeaderProps) {
   const changePositive = priceChange24h >= 0;
+  const [marketMenuOpen, setMarketMenuOpen] = useState(false);
+  const marketMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!marketMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (marketMenuRef.current && !marketMenuRef.current.contains(e.target as Node)) {
+        setMarketMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [marketMenuOpen]);
 
   return (
-    <header className="h-16 border-b border-border bg-surface/60 backdrop-blur-md flex items-center px-6 shrink-0 gap-5">
+    <header className="relative z-30 h-16 border-b border-border bg-surface/60 backdrop-blur-md flex items-center px-6 shrink-0 gap-5">
       {/* Brand */}
       <Link href="/" className="flex items-center gap-2.5 shrink-0">
         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-lime to-bull flex items-center justify-center glow-lime">
@@ -85,22 +99,30 @@ export function Header({
       <div className="w-px h-6 bg-border shrink-0" />
 
       {/* Market selector */}
-      <div className="relative group shrink-0">
-        <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg glass hover:bg-surface-2 transition cursor-pointer">
+      <div className="relative shrink-0" ref={marketMenuRef}>
+        <button
+          onClick={() => setMarketMenuOpen((open) => !open)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg glass hover:bg-surface-2 transition cursor-pointer"
+        >
           <span className="font-mono font-bold text-sm">{selectedMarket.replace("_", "-")}</span>
           <ChevronDown className="w-4 h-4 text-muted-foreground" />
         </button>
-        <div className="absolute top-10 left-0 w-44 bg-[#141a22] border border-border rounded-xl shadow-2xl hidden group-hover:block z-50 overflow-hidden">
-          {SUPPORTED_MARKETS.map((m) => (
-            <button
-              key={m}
-              onClick={() => onMarketChange(m)}
-              className="w-full text-left px-4 py-2.5 text-sm font-mono hover:bg-surface-2 hover:text-lime transition cursor-pointer"
-            >
-              {m.replace("_", "-")}
-            </button>
-          ))}
-        </div>
+        {marketMenuOpen && (
+          <div className="absolute top-10 left-0 w-44 bg-[#141a22] border border-border rounded-xl shadow-2xl z-50 overflow-hidden">
+            {SUPPORTED_MARKETS.map((m) => (
+              <button
+                key={m}
+                onClick={() => {
+                  onMarketChange(m);
+                  setMarketMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-2.5 text-sm font-mono hover:bg-surface-2 hover:text-lime transition cursor-pointer"
+              >
+                {m.replace("_", "-")}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Market stats */}

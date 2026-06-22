@@ -4,13 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { apiRequest } from "../api";
 import { API_ROUTES } from "../config";
 import { buildOrderBookSide, mergeIncrementalDepth } from "../utils/trading";
-import type { DepthResponse, OrderBookLevel } from "../types/trading";
-
-function defaultPrice(market: string) {
-  if (market === "BTC_USDC") return 96420;
-  if (market === "ETH_USDC") return 3120;
-  return 22.45;
-}
+import type { DepthResponse, OrderBookLevel, StatsResponse } from "../types/trading";
 
 export type LastTrade = { price: number; qty: number; ts: number };
 
@@ -19,11 +13,12 @@ export function useMarketData(selectedMarket: string) {
   const [asks, setAsks] = useState<OrderBookLevel[]>([]);
   const [maxTotalVolume, setMaxTotalVolume] = useState(1);
   const [marketError, setMarketError] = useState<string | null>(null);
-  const [lastTradedPrice, setLastTradedPrice] = useState(() => defaultPrice(selectedMarket));
-  const [markPrice, setMarkPrice] = useState(() => defaultPrice(selectedMarket));
-  const [priceHigh24h, setPriceHigh24h] = useState(() => defaultPrice(selectedMarket) * 1.04);
-  const [priceLow24h, setPriceLow24h] = useState(() => defaultPrice(selectedMarket) * 0.97);
-  const [volume24h, setVolume24h] = useState(1420500);
+  const [lastTradedPrice, setLastTradedPrice] = useState(0);
+  const [markPrice, setMarkPrice] = useState(0);
+  const [priceHigh24h, setPriceHigh24h] = useState(0);
+  const [priceLow24h, setPriceLow24h] = useState(0);
+  const [volume24h, setVolume24h] = useState(0);
+  const [priceChange24h, setPriceChange24h] = useState(0);
   const [lastTrade, setLastTrade] = useState<LastTrade | null>(null);
   const bidsRef = useRef<OrderBookLevel[]>([]);
   const asksRef = useRef<OrderBookLevel[]>([]);
@@ -42,16 +37,14 @@ export function useMarketData(selectedMarket: string) {
     setMaxTotalVolume(maxVol);
   }, []);
 
-  // Reset market stats when market changes
+  // Clear stale stats from the previous market while the real fetch is in flight
   useEffect(() => {
-    const base = defaultPrice(selectedMarket);
-    setLastTradedPrice(base);
-    setMarkPrice(base);
-    setPriceHigh24h(base * 1.04);
-    setPriceLow24h(base * 0.97);
-    setVolume24h(
-      selectedMarket === "BTC_USDC" ? 82400 : selectedMarket === "ETH_USDC" ? 314000 : 1420500,
-    );
+    setLastTradedPrice(0);
+    setMarkPrice(0);
+    setPriceHigh24h(0);
+    setPriceLow24h(0);
+    setVolume24h(0);
+    setPriceChange24h(0);
   }, [selectedMarket]);
 
   const applyDepth = useCallback((rawBids: unknown, rawAsks: unknown) => {
@@ -92,6 +85,25 @@ export function useMarketData(selectedMarket: string) {
     fetchDepth();
   }, [commitDepth, fetchDepth]);
 
+  const fetchStats = useCallback(async () => {
+    try {
+      const data = await apiRequest<StatsResponse>(API_ROUTES.stats(selectedMarket));
+      if (typeof data.high24h === "number") setPriceHigh24h(data.high24h);
+      if (typeof data.low24h === "number") setPriceLow24h(data.low24h);
+      if (typeof data.volume24h === "number") setVolume24h(data.volume24h);
+      if (typeof data.change24h === "number") setPriceChange24h(data.change24h);
+    } catch {
+      // Stats are a nice-to-have — keep whatever was last shown on failure.
+    }
+  }, [selectedMarket]);
+
+  // Pull real 24h stats on mount/market change, then keep them fresh while open.
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
+
   const applyTradeTick = useCallback((price: number, qty: number) => {
     setLastTradedPrice(price);
     setLastTrade({ price, qty, ts: Date.now() });
@@ -112,6 +124,7 @@ export function useMarketData(selectedMarket: string) {
     priceHigh24h,
     priceLow24h,
     volume24h,
+    priceChange24h,
     lastTrade,
     applyDepth,
     applyIncrementalDepth,

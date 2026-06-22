@@ -18,6 +18,8 @@ export function DeleteOrder(orderId: string, userId: string, market: string) {
   }
   //finding the orderid in the asks table;
   let resolve: boolean = false;
+  let cancelledSide: "ask" | "bid" | null = null;
+  let cancelledPrice: number | null = null;
   const ask = book.asks;
   const bid = book.bids;
   const sortedarray = Array.from(ask.keys()).sort((a, b) => a - b);
@@ -56,6 +58,8 @@ export function DeleteOrder(orderId: string, userId: string, market: string) {
         balance.available += refund;
         balance.locked = Math.max(0, balance.locked - refund);
         resolve = true;
+        cancelledSide = "ask";
+        cancelledPrice = levelprice;
       }
     }
   }
@@ -100,6 +104,8 @@ export function DeleteOrder(orderId: string, userId: string, market: string) {
           balance.available += refund;
           balance.locked = Math.max(0, balance.locked - refund);
           resolve = true;
+          cancelledSide = "bid";
+          cancelledPrice = levelprice;
         }
       }
     }
@@ -110,9 +116,16 @@ export function DeleteOrder(orderId: string, userId: string, market: string) {
       error: "order not found",
     };
   } else {
+    const remainingQty =
+      cancelledSide === "ask"
+        ? book.asks.get(cancelledPrice!)?.availableQty ?? 0
+        : book.bids.get(cancelledPrice!)?.availableQty ?? 0;
     return {
       success: true,
       data: "order remvoed successfully",
+      side: cancelledSide!,
+      price: cancelledPrice!,
+      remainingQty,
     };
   }
 }

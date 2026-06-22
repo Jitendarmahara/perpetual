@@ -76,6 +76,14 @@ export type DepthResponse = {
   lastTradedPrice?: number;
 };
 
+export type StatsResponse = {
+  success: boolean;
+  high24h?: number | null;
+  low24h?: number | null;
+  volume24h?: number;
+  change24h?: number;
+};
+
 export interface Fill {
   id: string;
   price: string;
