@@ -1,0 +1,7 @@
+api.preps.dev {
+	reverse_proxy backend:3000
+}
+
+ws.preps.dev {
+	reverse_proxy ws:8080
+}

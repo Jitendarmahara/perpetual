@@ -7,7 +7,6 @@ import {
   CrosshairMode,
   type IChartApi,
   type ISeriesApi,
-  type CandlestickData,
   type UTCTimestamp,
 } from "lightweight-charts";
 import type { Candle } from "../../types/trading";

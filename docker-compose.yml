@@ -1,0 +1,131 @@
+services:
+    postgres:
+      image: timescale/timescaledb:latest-pg16
+      environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_secure_password}
+        POSTGRES_DB: mydb
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+      ports:
+        - "5432:5432"
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U postgres"]
+        interval: 5s
+        timeout: 5s
+        retries: 10
+
+    redis:
+      image: redis:7-alpine
+      volumes:
+        - redis_data:/data
+      healthcheck:
+        test: ["CMD", "redis-cli", "ping"]
+        interval: 5s
+        timeout: 5s
+        retries: 10
+
+    migrate:
+      image: jiten56/preps-migrate:latest
+      build:
+        context: .
+        dockerfile: docker/Dockerfile.service
+        args:
+          APP_DIR: packages/db
+      command: sh -c "bunx prisma migrate deploy && bun setup.ts"
+      environment:
+        DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-your_secure_password}@postgres:5432/mydb
+      depends_on:
+        postgres:
+          condition: service_healthy
+      restart: "no"
+
+    backend:
+      image: jiten56/preps-backend:latest
+      build:
+        context: .
+        dockerfile: docker/Dockerfile.service
+        args:
+          APP_DIR: apps/backend
+      ports:
+        - "3000:3000"
+      environment:
+        JWT_SECRET: ${JWT_SECRET}
+        REDIS_URL: redis://redis:6379
+        DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-your_secure_password}@postgres:5432/mydb
+      depends_on:
+        redis:
+          condition: service_healthy
+        migrate:
+          condition: service_completed_successfully
+      restart: unless-stopped
+
+    ws:
+      image: jiten56/preps-ws:latest
+      build:
+        context: .
+        dockerfile: docker/Dockerfile.service
+        args:
+          APP_DIR: apps/ws
+      ports:
+        - "8080:8080"
+      environment:
+        JWT_SECRET: ${JWT_SECRET}
+        REDIS_URL: redis://redis:6379
+      depends_on:
+        redis:
+          condition: service_healthy
+      restart: unless-stopped
+
+    engine:
+      image: jiten56/preps-engine:latest
+      build:
+        context: .
+        dockerfile: docker/Dockerfile.service
+        args:
+          APP_DIR: apps/engine
+      environment:
+        REDIS_URL: redis://redis:6379
+        SNAPSHOT_PATH: /data/snapshot.json
+      volumes:
+        - engine_data:/data
+      depends_on:
+        redis:
+          condition: service_healthy
+      restart: unless-stopped
+
+    db_poller:
+      image: jiten56/preps-db-poller:latest
+      build:
+        context: .
+        dockerfile: docker/Dockerfile.service
+        args:
+          APP_DIR: apps/db_poller
+      environment:
+        REDIS_URL: redis://redis:6379
+        DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-your_secure_password}@postgres:5432/mydb
+      depends_on:
+        redis:
+          condition: service_healthy
+        migrate:
+          condition: service_completed_successfully
+      restart: unless-stopped
+
+    price_poller:
+      image: jiten56/preps-price-poller:latest
+      build:
+        context: .
+        dockerfile: docker/Dockerfile.service
+        args:
+          APP_DIR: apps/price_poller
+      environment:
+        REDIS_URL: redis://redis:6379
+      depends_on:
+        redis:
+          condition: service_healthy
+      restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  engine_data:

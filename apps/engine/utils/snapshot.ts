@@ -1,6 +1,7 @@
 import { Orderbook, Balance, Position } from "../stor/echangestore";
 
-const SNAPSHOT_PATH = `${import.meta.dir}/../snapshot.json`;
+const SNAPSHOT_PATH =
+  process.env.SNAPSHOT_PATH || `${import.meta.dir}/../snapshot.json`;
 
 // Flipped on while replaying input_stream history during recovery, so
 // PublishEngineEvents (and index.ts's publishEvent) stay silent — those
