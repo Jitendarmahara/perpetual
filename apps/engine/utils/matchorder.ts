@@ -3,6 +3,7 @@ import type { openOrders, positions } from "../types/types";
 import { randomUUID } from "crypto";
 import { CheckPositionUpdates } from "./positionupdate";
 import { createClient, Type, type FillData, type OrderUpdate } from "@repo/redis_data";
+import { replayState } from "./snapshot";
 
 export type EngineStreamEvent = Record<string, unknown>;
 
@@ -25,6 +26,7 @@ async function getClient() {
 }
 
 export async function PublishEngineEvents(events: EngineStreamEvent[]) {
+  if (replayState.active) return;
   const c = await getClient();
   for (const event of events) {
     await c.xAdd("events_stream", "*", { data: JSON.stringify(event) });
