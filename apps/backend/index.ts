@@ -2,7 +2,11 @@ import { createClient } from "@repo/redis_data";
 import { resolveMap, INSTANCE_ID } from "./loopback";
 import router from "./routes/user";
 import express from "express";
+import rateLimit from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
 const app = express();
+app.set("trust proxy", 1);
+
 app.use(express.json());
 
 // Enable CORS for frontend requests
@@ -19,6 +23,21 @@ app.use((req, res, next) => {
 });
 
 const redis_client = await createClient();
+
+const limiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute window
+  limit: 20, // max 10 requests per IP
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  store: new RedisStore({
+    sendCommand: (...args: string[]) => redis_client.sendCommand(args),
+  }),
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: "Too many requests. Max 10 per minute per IP.",
+    });
+  },
+});
 
 type StreamResponse = {
   name: string;
@@ -57,6 +76,7 @@ async function EventsListener() {
 
 EventsListener();
 
+app.use("/api/v1", limiter);
 app.use("/api/v1", router);
 
 app.listen(3000, () => {
