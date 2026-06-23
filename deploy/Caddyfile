@@ -1,7 +1,7 @@
-api.preps.dev {
+api.thinks.live {
 	reverse_proxy backend:3000
 }
 
-ws.preps.dev {
+ws.thinks.live {
 	reverse_proxy ws:8080
 }
