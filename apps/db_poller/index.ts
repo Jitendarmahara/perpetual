@@ -29,7 +29,7 @@ async function readNewMessages(){
   return (await redis.xReadGroup(
     GROUP_NAME,
     CONSUMER_ID,
-    [{key:STREAM_NAME , id:">"}],
+    [{key:STREAM_NAME , id:">"}], 
     {BLOCK:0 , COUNT:READ_COUNT},
   )) as StreamResponse | null
 }

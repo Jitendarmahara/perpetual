@@ -117,7 +117,7 @@ async function saveFillEvent(event: FillEvent) {
 
   for (const fill of event.fills) {
     const marketId = await marketIdFor(fill.marketId); // the market id her is slug name of that market only;
-// update with prisma transaction
+// update with prisma transaction //  transaction need to be added over here either both shoudl happen otherwise none shodul happen;
     await client.fills.upsert({
       where: { id: fill.id },
       update: {},
@@ -170,4 +170,3 @@ export async function saveEvent(event: PersistableEvent) {
   }
 }
 
-// Optimized memory tracking configurations at 2026-06-08 23:56:59
