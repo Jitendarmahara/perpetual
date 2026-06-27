@@ -104,45 +104,50 @@ async function saveCreateOrderEvent(event: CreateOrderEvent) {
 }
 
 async function saveFillEvent(event: FillEvent) {
-  const marketIds = new Map<string, string>(); // this is just to save the extra db calls for the same markte again //not my thinking 
+  await client.$transaction(async (tx) => {
+    const marketIds = new Map<string, string>();
 
-  async function marketIdFor(marketSlug: string) {
-    const existing = marketIds.get(marketSlug);
-    if (existing) return existing;
+    async function marketIdFor(marketSlug: string) {
+      const existing = marketIds.get(marketSlug);
+      if (existing) return existing;
 
-    const marketId = await getMarketId(marketSlug);
-    marketIds.set(marketSlug, marketId);
-    return marketId;
-  }
+      const market = await tx.market.upsert({
+        where: { market_slug: marketSlug },
+        update: {},
+        create: { market_slug: marketSlug },
+      });
+      marketIds.set(marketSlug, market.id);
+      return market.id;
+    }
 
-  for (const fill of event.fills) {
-    const marketId = await marketIdFor(fill.marketId); // the market id her is slug name of that market only;
-// update with prisma transaction //  transaction need to be added over here either both shoudl happen otherwise none shodul happen;
-    await client.fills.upsert({
-      where: { id: fill.id },
-      update: {},
-      create: {
-        id: fill.id,
-        maker_id: fill.maker_id,
-        taker_id: fill.taker_id,
-        price: fill.price,
-        qty: fill.qty,
-        maker_order_id: fill.maker_order_id,
-        taker_order_id: fill.taker_order_id,
-        marketId,
-      },
-    });
-  }
+    for (const fill of event.fills) {
+      const marketId = await marketIdFor(fill.marketId);
+      await tx.fills.upsert({
+        where: { id: fill.id },
+        update: {},
+        create: {
+          id: fill.id,
+          maker_id: fill.maker_id,
+          taker_id: fill.taker_id,
+          price: fill.price,
+          qty: fill.qty,
+          maker_order_id: fill.maker_order_id,
+          taker_order_id: fill.taker_order_id,
+          marketId,
+        },
+      });
+    }
 
-  for (const orderUpdate of event.orderUpdates) {
-    await client.orders.update({
-      where: { id: orderUpdate.orderId },
-      data: {
-        filledqty: orderUpdate.filledqty,
-        status: mapStatus(orderUpdate.status),
-      },
-    });
-  }
+    for (const orderUpdate of event.orderUpdates) {
+      await tx.orders.update({
+        where: { id: orderUpdate.orderId },
+        data: {
+          filledqty: orderUpdate.filledqty,
+          status: mapStatus(orderUpdate.status),
+        },
+      });
+    }
+  });
 }
 
 async function saveCancelOrderEvent(event: CancelOrderEvent) {

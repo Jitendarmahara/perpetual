@@ -36,6 +36,8 @@ services:
 
   backend:
     image: jiten56/preps-backend:latest
+    ports:
+      - "3000:3000"
     environment:
       JWT_SECRET: ${JWT_SECRET}
       REDIS_URL: redis://redis:6379
@@ -49,6 +51,8 @@ services:
 
   ws:
     image: jiten56/preps-ws:latest
+    ports:
+      - "9102:9102"
     environment:
       JWT_SECRET: ${JWT_SECRET}
       REDIS_URL: redis://redis:6379
@@ -59,6 +63,8 @@ services:
 
   engine:
     image: jiten56/preps-engine:latest
+    ports:
+      - "9101:9101"
     environment:
       REDIS_URL: redis://redis:6379
       SNAPSHOT_PATH: /data/snapshot.json
@@ -71,6 +77,8 @@ services:
 
   db_poller:
     image: jiten56/preps-db-poller:latest
+    ports:
+      - "9103:9103"
     environment:
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/mydb
