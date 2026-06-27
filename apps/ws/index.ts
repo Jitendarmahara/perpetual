@@ -2,6 +2,7 @@ import { WebSocketServer } from "ws";
 import { UserManager } from "./userManager";
 import Jwt from "jsonwebtoken";
 import "./broadcaster";
+import { wsConnectionErrorsTotal } from "./metrics";
 
 const wss = new WebSocketServer({ port: 8080 });
 
@@ -20,6 +21,7 @@ wss.on("connection", (ws, req) => {
     UserManager.getInstance().adduser(payload.userId, ws);
   } catch (err) {
     ws.close(1008, "Invalid token");
+    wsConnectionErrorsTotal.inc();
   }
 });
 

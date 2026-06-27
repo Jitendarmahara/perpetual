@@ -1,16 +1,20 @@
 global:
- scrape_interval: 15s
+  scrape_interval: 15s
+
 scrape_configs:
   - job_name: backend
+    metrics_path: /metrics
     static_configs:
-      - targets: [""]
+      - targets: ["34.131.160.6:3000"]
+
   - job_name: engine
     static_configs:
-      - targets: [""]
+      - targets: ["34.131.160.6:9101"]
+
   - job_name: ws
     static_configs:
-      - targets: []
-  
-  - job_name: price_poller
+      - targets: ["34.131.160.6:9102"]
+
+  - job_name: db_poller
     static_configs:
-      - targets: [""]
+      - targets: ["34.131.160.6:9103"]

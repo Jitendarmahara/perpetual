@@ -1,3 +1,4 @@
+import { wsActiveConnections } from "./metrics";
 import { SubscriptionManager } from "./SubscriptionManager";
 import { User } from "./user";
 import { WebSocket } from "ws";
@@ -22,11 +23,13 @@ export class UserManager {
       this.usermap.set(userId, new Set([user]));
     }
     this.RegisterOnclose(ws, userId, user);
+    wsActiveConnections.inc();
     return user;
   }
 
   public RegisterOnclose(ws: WebSocket, id: string, user: User) {
     ws.on("close", () => {
+       wsActiveConnections.dec();
       const users = this.usermap.get(id);
       if (!users) return;
 

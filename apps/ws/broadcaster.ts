@@ -1,4 +1,5 @@
 import { createClient, getRedisUrl, Type } from "@repo/redis_data";
+import { wsMessagesSentTotal } from "./metrics";
 
 async function startBroadcaster() {
   const redisClient = await createClient();
@@ -19,7 +20,7 @@ async function startBroadcaster() {
       for (const stream of response) {
         for (const msg of stream.messages) {
           lastId = msg.id;
-
+          wsMessagesSentTotal.inc();
           const data = JSON.parse(msg.message.data);
 
           //Send fills (trades) and order updates one-by-one, and depth changes

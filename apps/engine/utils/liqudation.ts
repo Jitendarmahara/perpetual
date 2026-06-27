@@ -16,7 +16,7 @@ export async function LiquidatePosition(
   market: string,
   position: positions,
   userId: string,
-) {
+): Promise<boolean> {
   if (position.type === "LONG" && price <= position.liquidationPrice) {
     const result = CreateOrder(
       userId,
@@ -42,6 +42,7 @@ export async function LiquidatePosition(
         }
       }
       await PublishEngineEvents(result.events);
+      return true;
     }
   }
   if (position.type === "SHORT" && price >= position.liquidationPrice) {
@@ -70,18 +71,24 @@ export async function LiquidatePosition(
         }
       }
       await PublishEngineEvents(result.events);
+      return true;
     }
   }
+  return false;
 }
 
-export async function CheckForLiqudation(market: string, price: number) {
+export async function CheckForLiqudation(market: string, price: number): Promise<number> {
+  let count = 0;
   const publishTasks: Promise<void>[] = [];
   for (const [userId, positoins] of Position) {
     const position = positoins.get(market);
     if (!position) {
       continue;
     }
-    publishTasks.push(LiquidatePosition(price, market, position, userId));
+    publishTasks.push(LiquidatePosition(price, market, position, userId).then((liquidated) => {
+      if (liquidated) count++;
+    }));
   }
   await Promise.all(publishTasks);
+  return count;
 }

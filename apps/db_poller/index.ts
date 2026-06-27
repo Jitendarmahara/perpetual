@@ -8,6 +8,7 @@ import {
   saveEvent,
   type StreamMessage,
 } from "./persistence";
+import { eventsFailedTotal, eventssavedTotal } from "./metrics";
 
 type StreamResponse = {
   name: string;
@@ -79,10 +80,11 @@ async function processMessage(message: StreamMessage) {
 
     await saveEvent(event); // db process that event 
     await redis.xAck(STREAM_NAME, GROUP_NAME, message.id); 
-
+    eventssavedTotal.inc();
     console.log("db poller saved event:", message.id);
   } catch (error) {
     console.error("db poller failed to save event:", message.id, error);
+     eventsFailedTotal.inc(); 
   }
 }
 

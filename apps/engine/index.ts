@@ -20,6 +20,7 @@ import { DeleteOrder, OpenOrders } from "./utils/orders";
 import { OpenPositions } from "./utils/positionupdate";
 import { GetDepth } from "./utils/getdepth";
 import { loadSnapshot, takeSnapshot, replayState } from "./utils/snapshot";
+import { ordersProcessedTotal, ordersFilledTotal, liquidationsTotal, inputStreamLag } from "./metrics";
 export const redisclient = await createClient();
 
 // Pre-create market slots — prices start at 0 and are set by the price poller
@@ -101,7 +102,8 @@ async function processMessage(parsed: any) {
       }
     }
 
-    await CheckForLiqudation(data.market, data.price);
+    const liquidated = await CheckForLiqudation(data.market, data.price);
+   if (liquidated > 0) liquidationsTotal.inc({ market: data.market }, liquidated);
 
     // Throttled broadcast so the frontend header shows the live price
     const now = Date.now();
@@ -124,8 +126,10 @@ async function processMessage(parsed: any) {
       data.market,
       data.ordertype,
     );
+    ordersProcessedTotal.inc({ market: data.market, side: data.side });
     if ("events" in result) {
       await PublishEngineEvents(result.events);
+       ordersFilledTotal.inc({ market: data.market });
     }
 
     const responseData =
@@ -250,6 +254,7 @@ async function MessageChecker() {
     for (const stream of respone) {
       for (const msg of stream.messages) {
         lastId = msg.id;
+       inputStreamLag.set(Date.now() - parseInt(msg.id.split("-")[0]!));
         await processMessage(JSON.parse(msg.message.data!));
       }
     }

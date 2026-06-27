@@ -4,6 +4,7 @@ import router from "./routes/user";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
+import { httpRequestDuration, httpRequestTotal, rateLimitHitsTotal , register } from "./metrics";
 const app = express();
 app.set("trust proxy", 1);
 
@@ -22,6 +23,20 @@ app.use((req, res, next) => {
   }
 });
 
+app.use((req , res , next)=>{
+  const end = httpRequestDuration.startTimer();
+  res.on("finish" , ()=>{
+    const route = req.route?.path??req.path;
+    httpRequestTotal.inc({methode:req.method , route  , status : res.statusCode});
+    end({methode: req.method , route , status : res.statusCode});
+    if(res.statusCode === 429 ) rateLimitHitsTotal.inc();
+  })
+  next();
+})
+app.get("/metrics" , async(_req ,res)=>{
+  res.set("Content-Type" , register.contentType );
+  res.end(await register.metrics());
+})
 const redis_client = await createClient();
 
 const limiter = rateLimit({
@@ -75,7 +90,6 @@ async function EventsListener() {
 }
 
 EventsListener();
-
 app.use("/api/v1", limiter);
 app.use("/api/v1", router);
 
