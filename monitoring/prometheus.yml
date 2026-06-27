@@ -1,0 +1,16 @@
+global:
+ scrape_interval: 15s
+scrape_configs:
+  - job_name: backend
+    static_configs:
+      - targets: [""]
+  - job_name: engine
+    static_configs:
+      - targets: [""]
+  - job_name: ws
+    static_configs:
+      - targets: []
+  
+  - job_name: price_poller
+    static_configs:
+      - targets: [""]
