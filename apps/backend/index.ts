@@ -1,6 +1,7 @@
 import { createClient } from "@repo/redis_data";
 import { resolveMap, INSTANCE_ID } from "./loopback";
 import router from "./routes/user";
+import candlesRouter from "./routes/candles";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
@@ -92,6 +93,7 @@ async function EventsListener() {
 EventsListener();
 app.use("/api/v1", limiter);
 app.use("/api/v1", router);
+app.use("/api/v1", candlesRouter);
 
 app.listen(3000, () => {
   console.log("Backend server running on port 3000");

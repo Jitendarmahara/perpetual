@@ -27,6 +27,7 @@ services:
 
   migrate:
     image: jiten56/preps-migrate:latest
+    command: sh -c "bunx prisma migrate deploy && bun setup.ts"
     environment:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/mydb
     depends_on:

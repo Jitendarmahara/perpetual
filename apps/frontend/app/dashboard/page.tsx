@@ -41,8 +41,8 @@ export default function Dashboard() {
     [market.applyIncrementalDepth],
   );
   const handleTrade = useCallback(
-    (price: number, qty: number) => {
-      market.applyTradeTick(price, qty);
+    (price: number, qty: number, ts: number) => {
+      market.applyTradeTick(price, qty, ts);
       // If the user has resting orders OR just placed one within the last 3s,
       // a fill in the market might involve them — refresh their data.
       const hasResting = trading.openOrders.length > 0;

@@ -36,6 +36,7 @@ async function startBroadcaster() {
                     data: {
                       e: "trade",
                       E: Date.now(),
+                      T: fill.executedAt,
                       s: marketId,
                       p: fill.price,
                       q: fill.qty,

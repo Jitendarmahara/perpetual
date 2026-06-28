@@ -92,6 +92,11 @@ export interface Fill {
   createdAt: string;
 }
 
+export type CandlesResponse = {
+  success: boolean;
+  candles: Candle[];
+};
+
 export type FillsResponse = {
   success: boolean;
   fills?: {

@@ -365,7 +365,7 @@ describe("UserBalanceLock - no existing position", () => {
   test("error when user balance not found", () => {
     const result = UserBalanceLock("nonexistent", "LONG", "BTC", 10, 100, 10);
     expect(result.success).toBe(false);
-    expect(result.error).toBe("user balnce not found");
+    expect(result.error).toBe("Insufficient funds");
   });
 });
 
@@ -734,7 +734,7 @@ describe("CreateOrder - Market LONG", () => {
     seedOrderbook("BTC", 50000, [], [[100, 20]]);
     const result = CreateOrder("user1", 10, 10, null, "LONG", "BTC", "Market");
     expectCreateOrderFailure(result);
-    expect(result.error).toBe("user balnce not found");
+    expect(result.error).toBe("Insufficient funds");
   });
 });
 

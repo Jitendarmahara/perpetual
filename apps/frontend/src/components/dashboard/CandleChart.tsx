@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   createChart,
   ColorType,
@@ -9,8 +9,10 @@ import {
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { Candle } from "../../types/trading";
+import type { Candle, CandlesResponse } from "../../types/trading";
 import type { LastTrade } from "../../hooks/useMarketData";
+import { apiRequest } from "../../api";
+import { API_ROUTES } from "../../config";
 
 type Timeframe = "1m" | "5m" | "15m" | "1H" | "2H" | "4H" | "1D";
 
@@ -36,6 +38,9 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
   const seriesRef    = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const candlesRef   = useRef<Candle[]>([]);
   const seededRef    = useRef(false);
+  // Buffer holds WS ticks that arrive before history is fetched
+  const bufferRef        = useRef<LastTrade[]>([]);
+  const historyLoadedRef = useRef(false);
   const [timeframe, setTimeframe] = useState<Timeframe>("1m");
 
   // Create chart once
@@ -91,14 +96,102 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
     };
   }, []);
 
-  // Clear the chart on market/timeframe change — no fabricated history to
-  // replace it with, real candles build up from here as real trades happen.
+  // Shared tick processor — used for both live updates and buffer replay
+  const processTick = useCallback((price: number, qty: number, ts: number, intervalSec: number) => {
+    if (!seriesRef.current || candlesRef.current.length === 0) return;
+
+    const period  = Math.floor(ts / 1000 / intervalSec) * intervalSec;
+    const candles = candlesRef.current;
+    const last    = candles[candles.length - 1]!;
+
+    let next: Candle;
+    if (period > last.time) {
+      next = {
+        time:   period,
+        open:   last.close,
+        high:   price,
+        low:    price,
+        close:  price,
+        volume: qty,
+      };
+      candlesRef.current = [...candles, next];
+    } else {
+      next = {
+        ...last,
+        close:  price,
+        high:   Math.max(last.high, price),
+        low:    Math.min(last.low,  price),
+        volume: last.volume + qty,
+      };
+      candlesRef.current = [...candles.slice(0, -1), next];
+    }
+
+    seriesRef.current.update({
+      time:  next.time as UTCTimestamp,
+      open:  next.open,
+      high:  next.high,
+      low:   next.low,
+      close: next.close,
+    });
+  }, []);
+
+  // On market/timeframe change:
+  // 1. Clear chart and reset state — WS is already live and ticks will start buffering
+  // 2. Fetch historical candles from the DB
+  // 3. Render history, then replay only the buffered ticks newer than history
+  // This guarantees zero gap between history and live data
   useEffect(() => {
     if (!seriesRef.current) return;
-    candlesRef.current = [];
-    seededRef.current = false;
+
+    candlesRef.current     = [];
+    seededRef.current      = false;
+    bufferRef.current      = [];
+    historyLoadedRef.current = false;
     seriesRef.current.setData([]);
-  }, [market, timeframe]);
+
+    let cancelled = false;
+    const intervalSec = INTERVAL_SEC[timeframe];
+
+    apiRequest<CandlesResponse>(API_ROUTES.candles(market, timeframe))
+      .then((data) => {
+        if (cancelled || !seriesRef.current) return;
+
+        const candles: Candle[] = data.candles ?? [];
+
+        if (candles.length > 0) {
+          seriesRef.current.setData(
+            candles.map((c) => ({
+              time:  c.time as UTCTimestamp,
+              open:  c.open,
+              high:  c.high,
+              low:   c.low,
+              close: c.close,
+            })),
+          );
+          candlesRef.current = candles;
+          seededRef.current  = true;
+        }
+
+        // Replay only buffered ticks that fall in periods newer than what the DB returned
+        const lastHistoricalTime = candles.length > 0 ? candles[candles.length - 1]!.time : 0;
+        for (const tick of bufferRef.current) {
+          const period = Math.floor(tick.ts / 1000 / intervalSec) * intervalSec;
+          if (period <= lastHistoricalTime) continue;
+          processTick(tick.price, tick.qty, tick.ts, intervalSec);
+        }
+      })
+      .catch(() => {
+        // History unavailable — seed fallback will trigger from lastTradedPrice
+      })
+      .finally(() => {
+        if (!cancelled) {
+          historyLoadedRef.current = true;
+          bufferRef.current = [];
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [market, timeframe, processTick]);
 
   // Seed exactly one real data point as soon as we know the real current
   // price, so the chart isn't blank — everything after this is built from
@@ -127,44 +220,17 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
     }]);
   }, [lastTradedPrice, timeframe]);
 
-  // Live tick update — builds real candles from real fills as they happen
+  // Live tick update — buffers ticks until history is loaded, then applies them in real time
   useEffect(() => {
-    if (!lastTrade || !seriesRef.current || candlesRef.current.length === 0) return;
+    if (!lastTrade || !seriesRef.current) return;
 
-    const intervalSec = INTERVAL_SEC[timeframe];
-    const period      = Math.floor(lastTrade.ts / 1000 / intervalSec) * intervalSec;
-    const candles     = candlesRef.current;
-    const last        = candles[candles.length - 1];
-
-    let next: Candle;
-    if (period > last.time) {
-      next = {
-        time:   period,
-        open:   last.close,
-        high:   lastTrade.price,
-        low:    lastTrade.price,
-        close:  lastTrade.price,
-        volume: lastTrade.qty,
-      };
-      candlesRef.current = [...candles, next];
-    } else {
-      next = {
-        ...last,
-        close:  lastTrade.price,
-        high:   Math.max(last.high,  lastTrade.price),
-        low:    Math.min(last.low,   lastTrade.price),
-        volume: last.volume + lastTrade.qty,
-      };
-      candlesRef.current = [...candles.slice(0, -1), next];
+    if (!historyLoadedRef.current) {
+      bufferRef.current.push(lastTrade);
+      return;
     }
 
-    seriesRef.current.update({
-      time:  next.time as UTCTimestamp,
-      open:  next.open,
-      high:  next.high,
-      low:   next.low,
-      close: next.close,
-    });
+    if (candlesRef.current.length === 0) return;
+    processTick(lastTrade.price, lastTrade.qty, lastTrade.ts, INTERVAL_SEC[timeframe]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastTrade]);
 

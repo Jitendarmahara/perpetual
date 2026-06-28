@@ -104,9 +104,9 @@ export function useMarketData(selectedMarket: string) {
     return () => clearInterval(interval);
   }, [fetchStats]);
 
-  const applyTradeTick = useCallback((price: number, qty: number) => {
+  const applyTradeTick = useCallback((price: number, qty: number, ts: number) => {
     setLastTradedPrice(price);
-    setLastTrade({ price, qty, ts: Date.now() });
+    setLastTrade({ price, qty, ts });
   }, []);
 
   // Updates mark price from the price poller ticker (no fill required)

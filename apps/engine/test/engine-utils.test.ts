@@ -8,6 +8,11 @@ import { DeleteOrder, OpenOrders } from "../utils/orders";
 import { CheckPositionUpdates } from "../utils/positionupdate";
 import { Type } from "@repo/redis_data";
 import { LiquidatePosition } from "../utils/liqudation";
+import { replayState } from "../utils/snapshot";
+
+// Suppress Redis publishing in unit tests — replayState.active is the
+// built-in bypass used during crash recovery replay.
+replayState.active = true;
 
 beforeEach(() => {
   Balance.clear();

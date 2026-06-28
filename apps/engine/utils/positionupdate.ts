@@ -86,9 +86,6 @@ export function CheckPositionUpdates(
       existingposition.type,
     );
     balance.locked = Math.max(0, balance.locked - relasemargin);
-    // Clamp so a loss bigger than the released margin can't push available
-    // negative — same protection the upfront flip-branch check already gives,
-    // applied here since this path has no pre-check at all.
     balance.available = Math.max(0, balance.available + relasemargin + pnl);
     return {
       success: true,

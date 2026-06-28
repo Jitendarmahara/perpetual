@@ -31,6 +31,8 @@ export const API_ROUTES = {
     `${apiUrl("/position")}?market=${encodeURIComponent(market)}`,
   fills: (market: string) =>
     `${apiUrl("/fills")}?market=${encodeURIComponent(market)}`,
+  candles: (market: string, interval: string) =>
+    `${apiUrl("/candles")}?market=${encodeURIComponent(market)}&interval=${encodeURIComponent(interval)}`,
 };
 
 const envWsBaseUrl = process.env.NEXT_PUBLIC_WS_BASE_URL

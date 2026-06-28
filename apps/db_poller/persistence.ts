@@ -136,6 +136,11 @@ async function saveFillEvent(event: FillEvent) {
           marketId,
         },
       });
+      await tx.$executeRaw`
+        INSERT INTO trades (id, market_id, price, qty, executed_at)
+        VALUES (${fill.id}, ${marketId}, ${Number(fill.price)}, ${Number(fill.qty)}, ${new Date(fill.executedAt)})
+        ON CONFLICT (id, executed_at) DO NOTHING
+      `;
     }
 
     for (const orderUpdate of event.orderUpdates) {
