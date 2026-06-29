@@ -12,7 +12,7 @@ async function startBroadcaster() {
     try {
       const response = (await redisClient.xRead(
         [{ key: "events_stream", id: lastId }],
-        { BLOCK: 500, COUNT: 100 },
+        { BLOCK: 0, COUNT: 100 },
       )) as any;
 
       if (!response) continue;
