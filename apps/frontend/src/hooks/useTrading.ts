@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { ApiError, apiRequest, authHeaders, getApiErrorMessage } from "../api";
 import { API_ROUTES } from "../config";
 import { toNumber, normalizeOrderSide } from "../utils/trading";
@@ -31,6 +31,18 @@ const isMissingOrderbookError = (err: unknown) =>
   typeof err.message === "string" &&
   err.message.toLowerCase().includes("orderbook not found");
 
+type CreateOrderResponse = {
+  success?: boolean;
+  executedqty?: number | string;
+  remaningqty?: number | string;
+  remainingQty?: number | string;
+};
+
+const ORDER_HIGHLIGHT_TTL_MS = 15_000;
+
+const orderLevelKey = (order: OpenOrder) =>
+  `${order.market}:${order.side}:${order.price.toFixed(8)}`;
+
 export function useTrading(
   token: string | null,
   selectedMarket: string,
@@ -40,6 +52,7 @@ export function useTrading(
   const [balance, setBalance] = useState<Balance>({ available: 0, locked: 0 });
   const [positions, setPositions] = useState<Position[]>([]);
   const [openOrders, setOpenOrders] = useState<OpenOrder[]>([]);
+  const [pendingOrderHighlights, setPendingOrderHighlights] = useState<OpenOrder[]>([]);
   const [fills, setFills] = useState<Fill[]>([]);
 
   const [error, setError] = useState<string | null>(null);
@@ -48,8 +61,10 @@ export function useTrading(
   const [onrampLoading, setOnrampLoading] = useState(false);
 
   const messageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingHighlightTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => {
     if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
+    for (const timeout of pendingHighlightTimeoutsRef.current) clearTimeout(timeout);
   }, []);
 
   const clearMessages = () => {
@@ -100,19 +115,22 @@ export function useTrading(
         headers: authHeaders(tok),
       });
       if (Array.isArray(data.orders)) {
-        setOpenOrders(
-          data.orders.flatMap((order): OpenOrder[] => {
-            const id = order.orderId || order.id;
-            if (!id) return [];
-            return [{
-              id,
-              qty: toNumber(order.qty),
-              filledQty: toNumber(order.filledQty ?? order.filledqty),
-              price: toNumber(order.price),
-              side: normalizeOrderSide(order.side),
-              market: order.market || selectedMarket,
-            }];
-          }),
+        const nextOrders = data.orders.flatMap((order): OpenOrder[] => {
+          const id = order.orderId || order.id;
+          if (!id) return [];
+          return [{
+            id,
+            qty: toNumber(order.qty),
+            filledQty: toNumber(order.filledQty ?? order.filledqty),
+            price: toNumber(order.price),
+            side: normalizeOrderSide(order.side),
+            market: order.market || selectedMarket,
+          }];
+        });
+        setOpenOrders(nextOrders);
+        const realOrderKeys = new Set(nextOrders.map(orderLevelKey));
+        setPendingOrderHighlights((pending) =>
+          pending.filter((order) => !realOrderKeys.has(orderLevelKey(order))),
         );
       } else {
         setOpenOrders([]);
@@ -182,11 +200,33 @@ export function useTrading(
       if (!token) { signout(); return; }
       setOrderLoading(true);
       try {
-        await apiRequest(API_ROUTES.order, {
+        const result = await apiRequest<CreateOrderResponse>(API_ROUTES.order, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...authHeaders(token) },
           body: JSON.stringify({ market: selectedMarket, qty, leverage, price, side, ordertype: orderType }),
         });
+        const remainingQty = toNumber(result.remaningqty ?? result.remainingQty);
+        if (orderType === "Limit" && price && remainingQty > 0) {
+          const pendingOrder: OpenOrder = {
+            id: `pending-${Date.now()}`,
+            qty: remainingQty,
+            filledQty: 0,
+            price,
+            side,
+            market: selectedMarket,
+          };
+          const pendingKey = orderLevelKey(pendingOrder);
+          setPendingOrderHighlights((pending) => [
+            ...pending.filter((order) => orderLevelKey(order) !== pendingKey),
+            pendingOrder,
+          ]);
+          const timeout = setTimeout(() => {
+            setPendingOrderHighlights((pending) =>
+              pending.filter((order) => order.id !== pendingOrder.id),
+            );
+          }, ORDER_HIGHLIGHT_TTL_MS);
+          pendingHighlightTimeoutsRef.current.push(timeout);
+        }
         showInfo(`Successfully placed ${side} ${orderType} order!`);
         onSuccess();
       } catch (err) {
@@ -197,6 +237,14 @@ export function useTrading(
     },
     [handleApiAuthError, selectedMarket, signout, token],
   );
+
+  const orderBookOrders = useMemo(() => {
+    const realOrderKeys = new Set(openOrders.map(orderLevelKey));
+    return [
+      ...openOrders,
+      ...pendingOrderHighlights.filter((order) => !realOrderKeys.has(orderLevelKey(order))),
+    ];
+  }, [openOrders, pendingOrderHighlights]);
 
   const closePosition = useCallback(
     async (
@@ -291,6 +339,7 @@ export function useTrading(
     balance,
     positions,
     openOrders,
+    orderBookOrders,
     fills,
     error,
     closePosition,

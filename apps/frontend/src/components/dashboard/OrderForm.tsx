@@ -65,14 +65,14 @@ export function OrderForm({
   };
 
   return (
-    <div className="bg-surface/20 border-t border-border p-4 flex flex-col shrink-0">
+    <div className="bg-surface/20 border border-border rounded-lg p-3 flex flex-col shrink-0">
       {/* Buy / Sell tabs */}
-      <div className="flex gap-1 mb-4 p-1 bg-[#0b0e11] rounded-xl border border-border/60">
+      <div className="flex gap-1 mb-3 p-1 bg-[#0b0e11] rounded-lg border border-border/60">
         {(["LONG", "SHORT"] as Side[]).map((s) => (
           <button
             key={s}
             onClick={() => setOrderSide(s)}
-            className={`flex-1 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+            className={`flex-1 py-1.5 rounded-md text-xs font-bold cursor-pointer transition-all ${
               orderSide === s
                 ? s === "LONG"
                   ? "bg-bull/20 text-bull"
@@ -86,7 +86,7 @@ export function OrderForm({
       </div>
 
       {/* Order type */}
-      <div className="flex gap-1 mb-4 text-xs">
+      <div className="flex gap-1 mb-3 text-xs">
         {(["Limit", "Market"] as OrderType[]).map((t) => (
           <button
             key={t}
@@ -104,17 +104,17 @@ export function OrderForm({
 
       {/* Alerts */}
       {error && (
-        <div className="mb-3 p-3 bg-bear/10 border border-bear/20 rounded-xl text-xs text-bear animate-fadeIn">
+        <div className="mb-2 p-2 bg-bear/10 border border-bear/20 rounded-lg text-xs text-bear animate-fadeIn">
           ⚠️ {error}
         </div>
       )}
       {infoMessage && (
-        <div className="mb-3 p-3 bg-bull/10 border border-bull/20 rounded-xl text-xs text-bull animate-fadeIn">
+        <div className="mb-2 p-2 bg-bull/10 border border-bull/20 rounded-lg text-xs text-bull animate-fadeIn">
           ✅ {infoMessage}
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-3 text-xs">
+      <div className="flex justify-between items-center mb-2 text-xs">
         <span className="text-muted-foreground">
           {isLong ? "Buy price (best ask)" : "Sell price (best bid)"}
         </span>
@@ -123,7 +123,7 @@ export function OrderForm({
         </span>
       </div>
 
-      <div className="space-y-3 text-xs mb-4">
+      <div className="space-y-2.5 text-xs mb-3">
         {/* Price input (Limit only) */}
         {orderType === "Limit" && (
           <div>
@@ -137,7 +137,7 @@ export function OrderForm({
                 min="0.01"
                 value={priceInput}
                 onChange={(e) => setPriceInput(e.target.value)}
-                className="w-full bg-input border border-border focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/20 rounded-xl py-2.5 px-3 font-mono text-[#f5f6f7] text-sm transition"
+                className="w-full bg-input border border-border focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/20 rounded-lg py-2 px-3 font-mono text-[#f5f6f7] text-sm transition"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-muted-foreground text-[11px]">
                 USDC
@@ -158,7 +158,7 @@ export function OrderForm({
               min="0.1"
               value={qtyInput}
               onChange={(e) => setQtyInput(e.target.value)}
-              className="w-full bg-input border border-border focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/20 rounded-xl py-2.5 px-3 font-mono text-[#f5f6f7] text-sm transition"
+              className="w-full bg-input border border-border focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/20 rounded-lg py-2 px-3 font-mono text-[#f5f6f7] text-sm transition"
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-muted-foreground text-[11px]">
               {baseAsset}
@@ -191,12 +191,12 @@ export function OrderForm({
       </div>
 
       {/* Quick % buttons */}
-      <div className="grid grid-cols-4 gap-1.5 mb-4 text-[10px] font-mono">
+      <div className="grid grid-cols-4 gap-1.5 mb-3 text-[10px] font-mono">
         {[25, 50, 75, 100].map((pct) => (
           <button
             key={pct}
             onClick={() => applyPct(pct)}
-            className="bg-surface/60 hover:bg-surface-2 border border-border text-muted-foreground hover:text-[#f5f6f7] py-1 rounded-lg cursor-pointer transition-colors font-semibold"
+            className="bg-surface/60 hover:bg-surface-2 border border-border text-muted-foreground hover:text-[#f5f6f7] py-0.5 rounded-md cursor-pointer transition-colors font-semibold"
           >
             {pct}%
           </button>
@@ -204,7 +204,7 @@ export function OrderForm({
       </div>
 
       {/* Order summary */}
-      <div className="glass rounded-xl p-3 text-xs space-y-1.5 mb-4 font-mono">
+      <div className="glass rounded-lg p-2.5 text-xs space-y-1 mb-3 font-mono">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Order value</span>
           <span className="text-[#f5f6f7]">${orderValue.toFixed(2)}</span>
@@ -223,7 +223,7 @@ export function OrderForm({
       <button
         onClick={handleSubmit}
         disabled={orderLoading || balance.available <= 0}
-        className={`w-full py-3 font-bold rounded-xl text-white cursor-pointer transition-transform active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50 text-sm ${
+        className={`w-full py-2.5 font-bold rounded-lg text-white cursor-pointer transition-transform active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50 text-sm ${
           isLong
             ? "bg-bull hover:opacity-90 shadow-lg shadow-bull/20"
             : "bg-bear hover:opacity-90 shadow-lg shadow-bear/20"

@@ -5,6 +5,8 @@ import {
   createChart,
   ColorType,
   CrosshairMode,
+  PriceScaleMode,
+  type AutoscaleInfoProvider,
   type IChartApi,
   type ISeriesApi,
   type UTCTimestamp,
@@ -26,6 +28,43 @@ const INTERVAL_SEC: Record<Timeframe, number> = {
   "1D":  86_400,
 };
 
+const VISIBLE_BARS: Record<Timeframe, number> = {
+  "1m":  72,
+  "5m":  72,
+  "15m": 72,
+  "1H":  80,
+  "2H":  80,
+  "4H":  84,
+  "1D":  90,
+};
+const RIGHT_PADDING_BARS = 10;
+const PRICE_SCALE_OPTIONS = {
+  autoScale: true,
+  mode: PriceScaleMode.Normal,
+  alignLabels: true,
+  scaleMargins: {
+    top: 0.12,
+    bottom: 0.12,
+  },
+};
+const paddedAutoscaleInfo: AutoscaleInfoProvider = (original) => {
+  const autoscale = original();
+  if (!autoscale) return autoscale;
+
+  const { minValue, maxValue } = autoscale.priceRange;
+  const range = Math.max(maxValue - minValue, Math.abs(maxValue) * 0.001, 0.01);
+  return {
+    priceRange: {
+      minValue: minValue - range * 0.08,
+      maxValue: maxValue + range * 0.08,
+    },
+    margins: {
+      above: 18,
+      below: 18,
+    },
+  };
+};
+
 interface CandleChartProps {
   market: string;
   lastTradedPrice: number;
@@ -38,6 +77,7 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
   const seriesRef    = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const candlesRef   = useRef<Candle[]>([]);
   const seededRef    = useRef(false);
+  const lastTickTsByPeriodRef = useRef<Map<number, number>>(new Map());
   // Buffer holds WS ticks that arrive before history is fetched
   const bufferRef        = useRef<LastTrade[]>([]);
   const historyLoadedRef = useRef(false);
@@ -64,14 +104,19 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
         vertLine: { color: "#24303f", labelBackgroundColor: "#141a22" },
         horzLine: { color: "#24303f", labelBackgroundColor: "#141a22" },
       },
-      rightPriceScale: { borderColor: "#1a2535", textColor: "#848e9c" },
+      rightPriceScale: {
+        ...PRICE_SCALE_OPTIONS,
+        borderColor: "#1a2535",
+        textColor: "#848e9c",
+      },
       timeScale: {
         borderColor: "#1a2535",
         timeVisible: true,
         secondsVisible: false,
-        rightOffset: 8,
-        minBarSpacing: 2,
-        shiftVisibleRangeOnNewBar: false,
+        rightOffset: RIGHT_PADDING_BARS,
+        barSpacing: 9,
+        minBarSpacing: 5,
+        shiftVisibleRangeOnNewBar: true,
       },
       handleScroll: true,
       handleScale: true,
@@ -84,56 +129,186 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
       borderDownColor: "#f84960",
       wickUpColor:     "#02c076",
       wickDownColor:   "#f84960",
+      autoscaleInfoProvider: paddedAutoscaleInfo,
     });
 
     chartRef.current  = chart;
     seriesRef.current = series;
 
+    let priceScaleFrame: number | null = null;
+    const resetPriceAutoscale = () => {
+      priceScaleFrame = null;
+      chart.priceScale("right").applyOptions(PRICE_SCALE_OPTIONS);
+      series.priceScale().applyOptions(PRICE_SCALE_OPTIONS);
+    };
+    const requestPriceAutoscale = () => {
+      if (priceScaleFrame !== null) window.cancelAnimationFrame(priceScaleFrame);
+      priceScaleFrame = window.requestAnimationFrame(resetPriceAutoscale);
+    };
+    chart.timeScale().subscribeVisibleLogicalRangeChange(requestPriceAutoscale);
+    requestPriceAutoscale();
+
     return () => {
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(requestPriceAutoscale);
+      if (priceScaleFrame !== null) window.cancelAnimationFrame(priceScaleFrame);
       chart.remove();
       chartRef.current  = null;
       seriesRef.current = null;
     };
   }, []);
 
-  // Shared tick processor — used for both live updates and buffer replay
+  const focusLatestCandles = useCallback((count: number) => {
+    if (!chartRef.current || count <= 0) return;
+
+    const visibleBars = VISIBLE_BARS[timeframe];
+    const rightPadding = Math.min(RIGHT_PADDING_BARS, Math.floor(visibleBars / 5));
+    const occupiedBars = visibleBars - rightPadding;
+    const from =
+      count >= occupiedBars
+        ? count - occupiedBars
+        : -Math.max(0, occupiedBars - count) / 2;
+
+    const timeScale = chartRef.current.timeScale();
+    timeScale.applyOptions({
+      rightOffset: rightPadding,
+      barSpacing: 9,
+      minBarSpacing: 5,
+    });
+    timeScale.setVisibleLogicalRange({
+      from,
+      to: from + visibleBars,
+    });
+  }, [timeframe]);
+
+  const renderCandles = useCallback((candles: Candle[], focus = false) => {
+    if (!seriesRef.current) return;
+
+    seriesRef.current.setData(
+      candles.map((c) => ({
+        time: c.time as UTCTimestamp,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      })),
+    );
+
+    if (focus) {
+      window.requestAnimationFrame(() => focusLatestCandles(candles.length));
+    }
+  }, [focusLatestCandles]);
+
+  // Shared tick processor — used for both live updates and buffer replay.
+  // Ticks can arrive out of order after a refresh, so update by candle period
+  // instead of blindly mutating the newest candle.
   const processTick = useCallback((price: number, qty: number, ts: number, intervalSec: number) => {
-    if (!seriesRef.current || candlesRef.current.length === 0) return;
+    if (
+      !seriesRef.current ||
+      !Number.isFinite(price) ||
+      price <= 0 ||
+      !Number.isFinite(ts)
+    ) {
+      return;
+    }
 
     const period  = Math.floor(ts / 1000 / intervalSec) * intervalSec;
     const candles = candlesRef.current;
-    const last    = candles[candles.length - 1]!;
+    const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 0;
 
-    let next: Candle;
+    if (candles.length === 0) {
+      const first: Candle = {
+        time: period,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume: safeQty,
+      };
+      candlesRef.current = [first];
+      seededRef.current = true;
+      lastTickTsByPeriodRef.current.set(period, ts);
+      seriesRef.current.setData([{
+        time: period as UTCTimestamp,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+      }]);
+      window.requestAnimationFrame(() => focusLatestCandles(1));
+      return;
+    }
+
+    const last = candles[candles.length - 1]!;
+    const existingIndex = candles.findIndex((c) => c.time === period);
+
     if (period > last.time) {
-      next = {
+      const next = {
         time:   period,
-        open:   last.close,
+        open:   price,
         high:   price,
         low:    price,
         close:  price,
-        volume: qty,
+        volume: safeQty,
       };
       candlesRef.current = [...candles, next];
-    } else {
-      next = {
-        ...last,
-        close:  price,
-        high:   Math.max(last.high, price),
-        low:    Math.min(last.low,  price),
-        volume: last.volume + qty,
-      };
-      candlesRef.current = [...candles.slice(0, -1), next];
+      lastTickTsByPeriodRef.current.set(period, ts);
+      seriesRef.current.update({
+        time:  next.time as UTCTimestamp,
+        open:  next.open,
+        high:  next.high,
+        low:   next.low,
+        close: next.close,
+      });
+      return;
     }
 
-    seriesRef.current.update({
-      time:  next.time as UTCTimestamp,
-      open:  next.open,
-      high:  next.high,
-      low:   next.low,
-      close: next.close,
-    });
-  }, []);
+    if (existingIndex === -1) {
+      if (period < candles[0]!.time) return;
+
+      const previous = [...candles]
+        .reverse()
+        .find((c) => c.time < period);
+      const inserted: Candle = {
+        time: period,
+        open: previous?.close ?? price,
+        high: price,
+        low: price,
+        close: price,
+        volume: safeQty,
+      };
+      const nextCandles = [...candles, inserted].sort((a, b) => a.time - b.time);
+      candlesRef.current = nextCandles;
+      lastTickTsByPeriodRef.current.set(period, ts);
+      renderCandles(nextCandles);
+      return;
+    }
+
+    const current = candles[existingIndex]!;
+    const previousTs = lastTickTsByPeriodRef.current.get(period) ?? -Infinity;
+    const next: Candle = {
+      ...current,
+      close: ts >= previousTs ? price : current.close,
+      high: Math.max(current.high, price),
+      low: Math.min(current.low, price),
+      volume: current.volume + safeQty,
+    };
+    const nextCandles = [...candles];
+    nextCandles[existingIndex] = next;
+    candlesRef.current = nextCandles;
+    lastTickTsByPeriodRef.current.set(period, Math.max(previousTs, ts));
+
+    if (existingIndex === candles.length - 1) {
+      seriesRef.current.update({
+        time:  next.time as UTCTimestamp,
+        open:  next.open,
+        high:  next.high,
+        low:   next.low,
+        close: next.close,
+      });
+    } else {
+      renderCandles(nextCandles);
+    }
+  }, [focusLatestCandles, renderCandles]);
 
   // On market/timeframe change:
   // 1. Clear chart and reset state — WS is already live and ticks will start buffering
@@ -145,6 +320,7 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
 
     candlesRef.current     = [];
     seededRef.current      = false;
+    lastTickTsByPeriodRef.current.clear();
     bufferRef.current      = [];
     historyLoadedRef.current = false;
     seriesRef.current.setData([]);
@@ -156,29 +332,33 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
       .then((data) => {
         if (cancelled || !seriesRef.current) return;
 
-        const candles: Candle[] = data.candles ?? [];
+        const candles: Candle[] = (data.candles ?? [])
+          .filter((c) =>
+            Number.isFinite(c.time) &&
+            Number.isFinite(c.open) &&
+            Number.isFinite(c.high) &&
+            Number.isFinite(c.low) &&
+            Number.isFinite(c.close),
+          )
+          .sort((a, b) => a.time - b.time);
 
         if (candles.length > 0) {
-          seriesRef.current.setData(
-            candles.map((c) => ({
-              time:  c.time as UTCTimestamp,
-              open:  c.open,
-              high:  c.high,
-              low:   c.low,
-              close: c.close,
-            })),
-          );
+          renderCandles(candles);
           candlesRef.current = candles;
           seededRef.current  = true;
         }
 
-        // Replay only buffered ticks that fall in periods newer than what the DB returned
+        // Replay buffered websocket ticks for the current/newer periods only.
+        // Older historical periods are already covered by the DB response.
         const lastHistoricalTime = candles.length > 0 ? candles[candles.length - 1]!.time : 0;
-        for (const tick of bufferRef.current) {
+        const bufferedTicks = [...bufferRef.current].sort((a, b) => a.ts - b.ts);
+        for (const tick of bufferedTicks) {
           const period = Math.floor(tick.ts / 1000 / intervalSec) * intervalSec;
-          if (period <= lastHistoricalTime) continue;
+          if (period < lastHistoricalTime) continue;
           processTick(tick.price, tick.qty, tick.ts, intervalSec);
         }
+
+        focusLatestCandles(candlesRef.current.length);
       })
       .catch(() => {
         // History unavailable — seed fallback will trigger from lastTradedPrice
@@ -191,7 +371,7 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
       });
 
     return () => { cancelled = true; };
-  }, [market, timeframe, processTick]);
+  }, [market, timeframe, focusLatestCandles, processTick, renderCandles]);
 
   // Seed exactly one real data point as soon as we know the real current
   // price, so the chart isn't blank — everything after this is built from
@@ -211,6 +391,7 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
       volume: 0,
     };
     candlesRef.current = [candle];
+    lastTickTsByPeriodRef.current.set(time, Date.now());
     seriesRef.current.setData([{
       time: time as UTCTimestamp,
       open: candle.open,
@@ -218,7 +399,8 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
       low: candle.low,
       close: candle.close,
     }]);
-  }, [lastTradedPrice, timeframe]);
+    window.requestAnimationFrame(() => focusLatestCandles(1));
+  }, [focusLatestCandles, lastTradedPrice, timeframe]);
 
   // Live tick update — buffers ticks until history is loaded, then applies them in real time
   useEffect(() => {
@@ -237,9 +419,9 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
   const TF_GROUPS: Timeframe[][] = [["1m", "5m", "15m"], ["1H", "2H", "4H", "1D"]];
 
   return (
-    <div className="flex-1 bg-[#0b0e11] flex flex-col border-b border-border relative min-h-[300px]">
+    <div className="flex-1 min-h-0 bg-[#0b0e11] flex flex-col border-b border-border relative">
       {/* Toolbar */}
-      <div className="h-10 border-b border-border/60 flex items-center gap-3 px-4 shrink-0 bg-surface/30">
+      <div className="h-9 border-b border-border/60 flex items-center gap-3 px-4 shrink-0 bg-surface/30">
         <span className="text-xs font-semibold text-[#f5f6f7] tracking-wide">
           {market.replace("_", "-")}
         </span>
@@ -275,7 +457,7 @@ export function CandleChart({ market, lastTradedPrice, lastTrade }: CandleChartP
       </div>
 
       {/* Chart canvas */}
-      <div ref={containerRef} className="flex-1" style={{ minHeight: "260px" }} />
+      <div ref={containerRef} className="flex-1 min-h-0" />
     </div>
   );
 }

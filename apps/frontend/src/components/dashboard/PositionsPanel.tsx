@@ -63,9 +63,9 @@ export function PositionsPanel({
   ];
 
   return (
-    <div className="h-56 bg-surface/10 flex flex-col min-h-[224px]">
+    <div className="h-44 xl:h-48 bg-surface/10 flex flex-col shrink-0">
       {/* Tab bar */}
-      <div className="h-10 border-b border-border bg-surface/40 flex items-center justify-between px-4 shrink-0">
+      <div className="h-9 border-b border-border bg-surface/40 flex items-center justify-between px-4 shrink-0">
         <div className="flex gap-5">
           {tabs.map((tab) => (
             <button
@@ -91,12 +91,12 @@ export function PositionsPanel({
       </div>
 
       {error && (
-        <div className="mx-4 mt-2 p-2.5 bg-bear/10 border border-bear/20 rounded-xl text-xs text-bear animate-fadeIn shrink-0">
+        <div className="mx-4 mt-2 p-2 bg-bear/10 border border-bear/20 rounded-lg text-xs text-bear animate-fadeIn shrink-0">
           ⚠️ {error}
         </div>
       )}
       {infoMessage && (
-        <div className="mx-4 mt-2 p-2.5 bg-bull/10 border border-bull/20 rounded-xl text-xs text-bull animate-fadeIn shrink-0">
+        <div className="mx-4 mt-2 p-2 bg-bull/10 border border-bull/20 rounded-lg text-xs text-bull animate-fadeIn shrink-0">
           ✅ {infoMessage}
         </div>
       )}
@@ -202,7 +202,7 @@ export function PositionsPanel({
                   {openOrders.map((ord) => (
                     <tr
                       key={ord.id}
-                      className="border-b border-border/20 hover:bg-surface-2/30 transition"
+                      className="border-b border-purple-400/25 bg-purple-500/10 ring-1 ring-inset ring-purple-400/25 hover:bg-purple-500/15 transition"
                     >
                       <td className="px-4 py-2.5">
                         <span
