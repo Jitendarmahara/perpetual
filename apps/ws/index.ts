@@ -25,4 +25,3 @@ wss.on("connection", (ws, req) => {
   }
 });
 
-// Aligned tracking parameters across codebase at 2026-06-07 00:06:03

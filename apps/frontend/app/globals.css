@@ -2,47 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Design tokens (space-separated RGB channels for Tailwind opacity support) ─── */
+/* Design tokens (space-separated RGB channels for Tailwind opacity support) */
 :root {
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
   --color-lime:      233 252 80;
   --color-lime-fg:   11  14  17;
   --color-bull:      2   192 118;
   --color-bear:      248 73  96;
-  --color-surface:   20  26  34;
-  --color-surface-2: 30  40  52;
-  --color-border:    36  48  63;
-  --color-input:     15  23  34;
-  --color-muted-fg:  132 142 156;
+  --color-surface:   17  22  30;
+  --color-surface-2: 27  35  47;
+  --color-border:    42  53  68;
+  --color-input:     11  16  24;
+  --color-muted-fg:  148 158 171;
 }
 
-/* ─── Base layer ─── */
+/* Base layer */
 @layer base {
   html, body {
-    background-color: #0b0e11;
-    color: #f5f6f7;
+    background-color: #07090d;
+    color: #f7fbff;
     font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   }
 
   body {
     background-image:
-      radial-gradient(circle at 15% 10%, rgba(233, 252, 80, 0.06), transparent 45%),
-      radial-gradient(circle at 85% 90%, rgba(2, 192, 118, 0.05), transparent 45%);
+      linear-gradient(180deg, rgba(18, 24, 34, 0.92) 0%, rgba(7, 9, 13, 1) 38rem),
+      linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: auto, 64px 64px, 64px 64px;
     background-attachment: fixed;
   }
 
   h1, h2, h3, h4 {
     font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
   }
 }
 
-/* ─── Custom utilities ─── */
+/* Custom utilities */
 @layer utilities {
   .glass {
-    background: rgba(20, 26, 34, 0.7);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(36, 48, 63, 0.6);
+    background: rgba(13, 18, 26, 0.72);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.09);
   }
 
   .glow-lime {
@@ -53,19 +58,41 @@
 
   .grid-bg {
     background-image:
-      linear-gradient(to right, rgba(36, 48, 63, 0.4) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(36, 48, 63, 0.4) 1px, transparent 1px);
+      linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
     background-size: 48px 48px;
+  }
+
+  .terminal-surface {
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.07), transparent 34%),
+      linear-gradient(180deg, rgba(16, 23, 34, 0.94), rgba(8, 11, 17, 0.96));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 24px 80px -56px rgba(0, 0, 0, 0.92);
+  }
+
+  .noise-mask {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 18px 18px;
+    mask-image: linear-gradient(to bottom, black, transparent 88%);
+  }
+
+  .market-scan {
+    background: linear-gradient(90deg, transparent, rgba(233, 252, 80, 0.14), transparent);
+    animation: market-scan 7s ease-in-out infinite;
   }
 }
 
-/* ─── Scrollbars ─── */
+/* Scrollbars */
 ::-webkit-scrollbar        { width: 4px; height: 4px; }
-::-webkit-scrollbar-track  { background: #0b0e11; }
-::-webkit-scrollbar-thumb  { background: #24303f; border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: #2d3b4e; }
+::-webkit-scrollbar-track  { background: #07090d; }
+::-webkit-scrollbar-thumb  { background: #2a3544; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #39475a; }
 
-/* ─── Animations ─── */
+/* Animations */
 @keyframes pulse-green {
   0%, 100% { background-color: rgba(2, 192, 118, 0); }
   50%       { background-color: rgba(2, 192, 118, 0.15); }
@@ -88,6 +115,12 @@
   50%       { opacity: 0.4; }
 }
 .animate-pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+@keyframes market-scan {
+  0%, 100% { transform: translateX(-78%); opacity: 0; }
+  18%, 82% { opacity: 1; }
+  50% { transform: translateX(78%); }
+}
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }

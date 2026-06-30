@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Wallet, PlusCircle, LogOut, TrendingUp, TrendingDown } from "lucide-react";
 import type { WsStatus } from "../../types/trading";
 import { SUPPORTED_MARKETS } from "../../types/trading";
+import { BrandMark } from "../marketing/Brand";
 
 interface HeaderProps {
   selectedMarket: string;
@@ -79,19 +80,8 @@ export function Header({
     <header className="relative z-30 h-16 border-b border-border bg-surface/60 backdrop-blur-md flex items-center px-6 shrink-0 gap-5">
       {/* Brand */}
       <Link href="/" className="flex items-center gap-2.5 shrink-0">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-lime to-bull flex items-center justify-center glow-lime">
-          <svg
-            viewBox="0 0 24 24"
-            className="w-4 h-4 text-[#0b0e11]"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-          >
-            <path d="M3 17l6-6 4 4 8-8" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M14 7h7v7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <span className="font-display font-bold text-[15px] tracking-tight hidden sm:inline">
+        <BrandMark />
+        <span className="font-display font-bold text-[15px] hidden sm:inline">
           BACKPACK<span className="text-lime font-mono text-sm">FUTURES</span>
         </span>
       </Link>

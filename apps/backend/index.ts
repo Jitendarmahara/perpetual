@@ -40,9 +40,10 @@ app.get("/metrics" , async(_req ,res)=>{
 })
 const redis_client = await createClient();
 
+// General API limit — covers data endpoints (candles, depth, balance, orders, etc.)
 const limiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute window
-  limit: 20, // max 10 requests per IP
+  windowMs: 60 * 1000,
+  limit: 300,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   store: new RedisStore({
@@ -50,7 +51,23 @@ const limiter = rateLimit({
   }),
   handler: (_req, res) => {
     res.status(429).json({
-      error: "Too many requests. Max 10 per minute per IP.",
+      error: "Too many requests. Please slow down.",
+    });
+  },
+});
+
+// Stricter limit for auth routes only (signup / signin)
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 15,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  store: new RedisStore({
+    sendCommand: (...args: string[]) => redis_client.sendCommand(args),
+  }),
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: "Too many auth attempts. Try again in a minute.",
     });
   },
 });
@@ -91,6 +108,8 @@ async function EventsListener() {
 }
 
 EventsListener();
+app.use("/api/v1/signup", authLimiter);
+app.use("/api/v1/signin", authLimiter);
 app.use("/api/v1", limiter);
 app.use("/api/v1", router);
 app.use("/api/v1", candlesRouter);

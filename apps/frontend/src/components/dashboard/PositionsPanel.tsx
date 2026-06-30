@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { CheckCircle2, RefreshCw, ShieldAlert } from "lucide-react";
 import type { Fill, OpenOrder, Position } from "../../types/trading";
 
 interface PositionsPanelProps {
@@ -91,13 +91,15 @@ export function PositionsPanel({
       </div>
 
       {error && (
-        <div className="mx-4 mt-2 p-2 bg-bear/10 border border-bear/20 rounded-lg text-xs text-bear animate-fadeIn shrink-0">
-          ⚠️ {error}
+        <div className="mx-4 mt-2 flex items-start gap-2 p-2 bg-bear/10 border border-bear/20 rounded-lg text-xs text-bear animate-fadeIn shrink-0">
+          <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
       {infoMessage && (
-        <div className="mx-4 mt-2 p-2 bg-bull/10 border border-bull/20 rounded-lg text-xs text-bull animate-fadeIn shrink-0">
-          ✅ {infoMessage}
+        <div className="mx-4 mt-2 flex items-start gap-2 p-2 bg-bull/10 border border-bull/20 rounded-lg text-xs text-bull animate-fadeIn shrink-0">
+          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{infoMessage}</span>
         </div>
       )}
 

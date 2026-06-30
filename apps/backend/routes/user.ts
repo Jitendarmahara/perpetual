@@ -296,7 +296,6 @@ const getPositionHandler = async (req: AuthRequest, res: Response) => {
 router.get("/position", authMiddleware, getPositionHandler);
 router.get("/get_position", authMiddleware, getPositionHandler);
 router.get("/get_userposition", authMiddleware, getPositionHandler);
-router.get("/get_userposit", authMiddleware, getPositionHandler);
 
 router.get("/fills", authMiddleware, async (req: AuthRequest, res: Response) => {
   const market = (req.query.market as string) || (req.body.market as string);

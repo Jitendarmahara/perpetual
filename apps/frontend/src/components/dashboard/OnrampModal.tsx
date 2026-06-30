@@ -26,7 +26,7 @@ export function OnrampModal({ loading, onClose, onSubmit }: OnrampModalProps) {
       className="fixed inset-0 bg-[#0b0e11]/80 backdrop-blur-md flex items-center justify-center z-[100] p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="glass rounded-2xl p-6 w-full max-w-sm shadow-2xl relative border border-border">
+      <div className="glass rounded-lg p-6 w-full max-w-sm shadow-2xl relative border border-border">
         {/* Header */}
         <div className="flex items-start justify-between mb-5">
           <div>
@@ -56,7 +56,7 @@ export function OnrampModal({ loading, onClose, onSubmit }: OnrampModalProps) {
                 type="button"
                 key={p}
                 onClick={() => setAmount(p.toString())}
-                className={`py-2 rounded-xl text-xs font-mono font-semibold transition-all cursor-pointer ${
+                className={`py-2 rounded-md text-xs font-mono font-semibold transition-all cursor-pointer ${
                   amount === p.toString()
                     ? "bg-lime/15 text-lime border border-lime/30"
                     : "bg-surface/60 border border-border text-muted-foreground hover:text-[#f5f6f7] hover:bg-surface-2"
@@ -81,7 +81,7 @@ export function OnrampModal({ loading, onClose, onSubmit }: OnrampModalProps) {
                 required
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full bg-input border border-border focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/20 rounded-xl py-2.5 pl-8 pr-4 text-sm font-mono text-[#f5f6f7] transition"
+                className="w-full bg-input border border-border focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/20 rounded-lg py-2.5 pl-8 pr-4 text-sm font-mono text-[#f5f6f7] transition"
               />
             </div>
           </div>
@@ -89,7 +89,7 @@ export function OnrampModal({ loading, onClose, onSubmit }: OnrampModalProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-lime hover:opacity-90 text-[#0b0e11] font-bold text-sm py-3 rounded-xl cursor-pointer glow-lime flex items-center justify-center gap-1.5 disabled:opacity-50 transition"
+            className="w-full bg-lime hover:opacity-90 text-[#0b0e11] font-bold text-sm py-3 rounded-lg cursor-pointer glow-lime flex items-center justify-center gap-1.5 disabled:opacity-50 transition"
           >
             {loading ? (
               <div className="w-4 h-4 border-2 border-[#0b0e11]/30 border-t-[#0b0e11] rounded-full animate-spin" />

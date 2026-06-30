@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { Type } from "@repo/redis_data";
 
 type Calls = {
+  userUpserts: any[];
   marketUpserts: any[];
   fillUpserts: any[];
   tradeInserts: any[];
@@ -11,6 +12,7 @@ type Calls = {
 
 function createCalls(): Calls {
   return {
+    userUpserts: [],
     marketUpserts: [],
     fillUpserts: [],
     tradeInserts: [],
@@ -30,6 +32,11 @@ mock.module("@repo/db/client", () => ({
         return { id: `market-${args.where.market_slug}` };
       },
     },
+    user: {
+      upsert: async (args: any) => {
+        calls.userUpserts.push(args);
+      },
+    },
     fills: {
       upsert: async (args: any) => {
         calls.fillUpserts.push(args);
@@ -42,10 +49,41 @@ mock.module("@repo/db/client", () => ({
       update: async (args: any) => {
         calls.orderUpdates.push(args);
       },
+      updateMany: async (args: any) => {
+        calls.orderUpdates.push(args);
+      },
       upsert: async (args: any) => {
         calls.orderUpserts.push(args);
         if (failOrderUpsert) throw new Error("db down");
       },
+    },
+    $transaction: async (fn: any) => {
+      return fn({
+        market: {
+          upsert: async (args: any) => {
+            calls.marketUpserts.push(args);
+            return { id: `market-${args.where.market_slug}` };
+          },
+        },
+        user: {
+          upsert: async (args: any) => {
+            calls.userUpserts.push(args);
+          },
+        },
+        fills: {
+          upsert: async (args: any) => {
+            calls.fillUpserts.push(args);
+          },
+        },
+        orders: {
+          updateMany: async (args: any) => {
+            calls.orderUpdates.push(args);
+          },
+        },
+        $executeRaw: async (...args: any[]) => {
+          calls.tradeInserts.push(args);
+        },
+      });
     },
   },
 }));
@@ -84,6 +122,7 @@ describe("DB poller persistence", () => {
     );
 
     expect(calls.marketUpserts).toHaveLength(1);
+    expect(calls.userUpserts[0].where.id).toBe("user-1");
     expect(calls.orderUpserts[0].create).toMatchObject({
       id: "order-1",
       filledqty: 0,
@@ -147,12 +186,16 @@ describe("DB poller persistence", () => {
     );
 
     expect(calls.fillUpserts[0].where.id).toBe("fill-1");
+    expect(calls.userUpserts.map((call) => call.where.id)).toEqual([
+      "maker",
+      "taker",
+    ]);
     expect(calls.fillUpserts[0].create.marketId).toBe("market-BTC");
     expect(calls.tradeInserts).toHaveLength(1);
     expect(calls.tradeInserts[0]).toContain("fill-1");
     expect(calls.tradeInserts[0]).toContain("market-BTC");
-    expect(calls.tradeInserts[0]).toContain("100");
-    expect(calls.tradeInserts[0]).toContain("3");
+    expect(calls.tradeInserts[0]).toContain(100);
+    expect(calls.tradeInserts[0]).toContain(3);
     expect(calls.orderUpdates[0].data).toMatchObject({
       filledqty: 3,
       status: "FILLED",

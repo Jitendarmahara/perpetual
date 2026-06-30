@@ -253,6 +253,17 @@ describe("CreateOrder events and leverage handling", () => {
     });
   });
 
+  test("updates last traded price to the fill price", () => {
+    seedBalance("taker", 100_000);
+    seedBalance("maker", 100_000);
+    seedBook("BTC", [], [[105, 2]]);
+
+    const result = CreateOrder("taker", 2, 10, null, "LONG", "BTC", "Market");
+
+    expect(result.success).toBe(true);
+    expect(Orderbook.get("BTC")!.lastTradedPrice).toBe(105);
+  });
+
   test("uses maker resting-order leverage when updating maker position", () => {
     seedBalance("taker", 100_000);
     seedBalance("maker", 100_000);

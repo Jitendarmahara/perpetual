@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CheckCircle2, ShieldAlert } from "lucide-react";
 import type { Balance, OrderType, Side } from "../../types/trading";
 
 interface OrderFormProps {
@@ -104,13 +105,15 @@ export function OrderForm({
 
       {/* Alerts */}
       {error && (
-        <div className="mb-2 p-2 bg-bear/10 border border-bear/20 rounded-lg text-xs text-bear animate-fadeIn">
-          ⚠️ {error}
+        <div className="mb-2 flex items-start gap-2 p-2 bg-bear/10 border border-bear/20 rounded-lg text-xs text-bear animate-fadeIn">
+          <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
       {infoMessage && (
-        <div className="mb-2 p-2 bg-bull/10 border border-bull/20 rounded-lg text-xs text-bull animate-fadeIn">
-          ✅ {infoMessage}
+        <div className="mb-2 flex items-start gap-2 p-2 bg-bull/10 border border-bull/20 rounded-lg text-xs text-bull animate-fadeIn">
+          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{infoMessage}</span>
         </div>
       )}
 

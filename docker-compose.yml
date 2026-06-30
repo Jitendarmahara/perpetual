@@ -50,7 +50,7 @@ services:
       ports:
         - "3000:3000"
       environment:
-        JWT_SECRET: ${JWT_SECRET}
+        JWT_SECRET: ${JWT_SECRET:-dev_secret}
         REDIS_URL: redis://redis:6379
         DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-your_secure_password}@postgres:5432/mydb
       depends_on:
@@ -70,11 +70,29 @@ services:
       ports:
         - "8080:8080"
       environment:
-        JWT_SECRET: ${JWT_SECRET}
+        JWT_SECRET: ${JWT_SECRET:-dev_secret}
         REDIS_URL: redis://redis:6379
       depends_on:
         redis:
           condition: service_healthy
+      restart: unless-stopped
+
+    frontend:
+      image: jiten56/preps-frontend:latest
+      build:
+        context: .
+        dockerfile: docker/Dockerfile.service
+        args:
+          APP_DIR: apps/frontend
+      command: sh -c "bunx next dev --port 3001 --hostname 0.0.0.0"
+      ports:
+        - "3001:3001"
+      environment:
+        API_INTERNAL_URL: http://backend:3000
+        NEXT_PUBLIC_WS_BASE_URL: ws://localhost:8080
+      depends_on:
+        - backend
+        - ws
       restart: unless-stopped
 
     engine:
@@ -92,6 +110,22 @@ services:
       depends_on:
         redis:
           condition: service_healthy
+      restart: unless-stopped
+
+    market:
+      image: jiten56/preps-market:latest
+      build:
+        context: .
+        dockerfile: docker/Dockerfile.service
+        args:
+          APP_DIR: apps/market
+      environment:
+        REDIS_URL: redis://redis:6379
+      depends_on:
+        redis:
+          condition: service_healthy
+        engine:
+          condition: service_started
       restart: unless-stopped
 
     db_poller:

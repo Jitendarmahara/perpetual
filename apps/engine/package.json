@@ -5,7 +5,6 @@
   "private": true,
   "scripts": {
     "start": "bun index.ts",
-    "simulate:markets": "bun market_simulator.ts",
     "dummy:depth": "bun dummy_depth_orders.ts"
   },
   "devDependencies": {

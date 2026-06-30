@@ -1,8 +1,10 @@
+
 "use client";
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Mail, ShieldAlert, Wallet } from "lucide-react";
+import { ArrowLeft, Mail, ShieldAlert } from "lucide-react";
+import { BrandLink } from "@/src/components/marketing/Brand";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -16,59 +18,51 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0e11] text-white flex flex-col items-center px-4">
-      <header className="w-full max-w-5xl h-20 flex items-center justify-between border-b border-[#24303f]/40">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-[#e9fc50] flex items-center justify-center">
-            <Wallet className="w-5 h-5 text-[#0b0e11]" />
-          </div>
-          <span className="text-xl font-bold tracking-tight">
-            BACKPACK<span className="text-[#e9fc50] font-extrabold font-mono ml-0.5">FUTURES</span>
-          </span>
-        </Link>
-        <Link href="/signin" className="text-xs text-[#848e9c] hover:text-white flex items-center gap-1">
-          <ArrowLeft className="w-3.5 h-3.5" />
+    <div className="min-h-screen bg-[#07090d] px-4 text-[#f7fbff]">
+      <header className="mx-auto flex h-20 w-full max-w-5xl items-center justify-between border-b border-white/10">
+        <BrandLink />
+        <Link href="/signin" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-[#aab4c0] transition hover:bg-white/[0.05] hover:text-white">
+          <ArrowLeft className="h-4 w-4" />
           Sign in
         </Link>
       </header>
 
-      <main className="w-full max-w-md my-16">
-        <div className="bg-[#141a22]/80 border border-[#24303f]/80 rounded-2xl p-8 shadow-2xl">
-          <h1 className="text-2xl font-bold tracking-tight mb-2">Recover Account</h1>
-          <p className="text-sm text-[#848e9c] mb-6">
-            Enter the email for the sandbox account.
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-16">
+        <div className="rounded-lg border border-white/10 bg-[#0c121b] p-7 shadow-2xl">
+          <div className="mb-3 text-sm font-semibold text-lime">Account recovery</div>
+          <h1 className="text-3xl font-bold text-white">Recover account</h1>
+          <p className="mt-3 text-sm leading-6 text-[#aab4c0]">
+            Enter the email for the sandbox account and the app will show the current recovery status.
           </p>
 
           {message && (
-            <div className="mb-6 p-4 bg-[#f84960]/10 border border-[#f84960]/20 rounded-xl flex items-start gap-3 text-sm text-[#f84960]">
-              <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
+            <div className="mt-6 flex items-start gap-3 rounded-lg border border-bear/25 bg-bear/10 p-4 text-sm text-bear">
+              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
               <span>{message}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
             <div>
-              <label className="block text-xs font-semibold text-[#848e9c] uppercase tracking-wider mb-2">
-                Email Address
-              </label>
+              <label className="mb-2 block text-xs font-semibold text-[#9aa8b8]">Email address</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#848e9c]/60" />
+                <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#758395]" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="name@domain.com"
-                  className="w-full bg-[#0b0e11]/60 border border-[#24303f] focus:border-[#e9fc50] rounded-xl py-3.5 pl-12 pr-4 text-sm text-white placeholder-[#848e9c]/40 outline-none transition-all duration-200"
+                  className="h-12 w-full rounded-lg border border-white/10 bg-[#0b1018] px-10 text-sm text-white outline-none transition placeholder:text-[#667386] focus:border-lime/60 focus:ring-2 focus:ring-lime/15"
                 />
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full bg-[#e9fc50] hover:bg-[#d8ea3d] text-[#0b0e11] font-bold rounded-xl py-4 transition-all duration-200"
+              className="h-12 w-full rounded-lg bg-lime text-sm font-bold text-[#07100d] transition hover:bg-[#f2ff75]"
             >
-              Check Recovery Status
+              Check recovery status
             </button>
           </form>
         </div>

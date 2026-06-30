@@ -272,8 +272,10 @@ export function CreateOrder(
         lockqty - executedqty,
         restingorder.qty - restingorder.filledQty,
       );
+      if (minfilled <= 0) continue;
       executedqty += minfilled;
       restingorder.filledQty += minfilled;
+      book.lastTradedPrice = levelprice;
       const fill: FillData = {
         id: randomUUID(),
         maker_id: restingorder.userId,

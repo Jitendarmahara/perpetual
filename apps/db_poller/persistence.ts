@@ -79,11 +79,25 @@ async function getMarketId(marketSlug: string) {
   return market.id;
 }
 
+async function ensureUser(userId: string) {
+  await client.user.upsert({
+    where: { id: userId },
+    update: {},
+    create: {
+      id: userId,
+      username: `${userId}@system.local`,
+      password: "system",
+      role: "User",
+    },
+  });
+}
+
 async function saveCreateOrderEvent(event: CreateOrderEvent) {
   const order = event.order;
   if (!order) return;
 
   const marketId = await getMarketId(order.marketId);
+  await ensureUser(order.userId);
 
   await client.orders.upsert({
     where: { id: order.id },
@@ -122,6 +136,26 @@ async function saveFillEvent(event: FillEvent) {
 
     for (const fill of event.fills) {
       const marketId = await marketIdFor(fill.marketId);
+      await tx.user.upsert({
+        where: { id: fill.maker_id },
+        update: {},
+        create: {
+          id: fill.maker_id,
+          username: `${fill.maker_id}@system.local`,
+          password: "system",
+          role: "User",
+        },
+      });
+      await tx.user.upsert({
+        where: { id: fill.taker_id },
+        update: {},
+        create: {
+          id: fill.taker_id,
+          username: `${fill.taker_id}@system.local`,
+          password: "system",
+          role: "User",
+        },
+      });
       await tx.fills.upsert({
         where: { id: fill.id },
         update: {},
@@ -144,7 +178,7 @@ async function saveFillEvent(event: FillEvent) {
     }
 
     for (const orderUpdate of event.orderUpdates) {
-      await tx.orders.update({
+      await tx.orders.updateMany({
         where: { id: orderUpdate.orderId },
         data: {
           filledqty: orderUpdate.filledqty,
@@ -179,4 +213,3 @@ export async function saveEvent(event: PersistableEvent) {
     await saveCancelOrderEvent(event);
   }
 }
-
