@@ -410,6 +410,10 @@ export function CreateOrder(
   };
 }
 
+// Liquidation fires when the user still has this fraction of notional as margin.
+// 5% buffer protects the exchange from slippage on the liquidation order.
+const MAINTENANCE_MARGIN_RATE = 0.05;
+
 export function LiqudationPrice(
   leverage: number,
   _qty: number,
@@ -420,11 +424,10 @@ export function LiqudationPrice(
     throw new Error("invalid leverage");
   }
 
-  const liqudationprice = price / leverage;
   if (type === "LONG") {
-    return price - liqudationprice;
+    return Math.round(price * (1 - 1 / leverage + MAINTENANCE_MARGIN_RATE) * 1e8) / 1e8;
   } else {
-    return price + liqudationprice;
+    return Math.round(price * (1 + 1 / leverage - MAINTENANCE_MARGIN_RATE) * 1e8) / 1e8;
   }
 }
 export function CalculateAveragePrice(

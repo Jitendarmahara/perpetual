@@ -305,7 +305,7 @@ describe("Position leverage and ADL", () => {
     const remaining = Position.get("user1")!.get("BTC")!;
     expect(remaining.qty).toBe(6);
     expect(remaining.leverage).toBe(5);
-    expect(remaining.liquidationPrice).toBe(80);
+    expect(remaining.liquidationPrice).toBe(85);
   });
 
   test("ADL closes against profitable opposite-side positions by priority", () => {
