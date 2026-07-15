@@ -243,6 +243,13 @@ setInterval(() => {
   void takeSnapshot(lastId);
 }, 10_000);
 
+// Cap the Redis streams so they can't grow unbounded and OOM Redis.
+// Runs in one place (engine is always on); ~ is approximate trim (cheap).
+setInterval(() => {
+  void redisclient.xTrim("input_stream", "MAXLEN", 10000, { strategyModifier: "~" });
+  void redisclient.xTrim("events_stream", "MAXLEN", 10000, { strategyModifier: "~" });
+}, 60_000);
+
 async function MessageChecker() {
   while (true) {
     const respone = (await redisclient.xRead(

@@ -5,13 +5,13 @@ scrape_configs:
   - job_name: backend
     metrics_path: /metrics
     static_configs:
-      - targets: ["35.202.154.51:3000"]
+      - targets: ["3.110.51.49:3000"]
   - job_name: engine
     static_configs:
-      - targets: ["35.202.154.51:9101"]
+      - targets: ["3.110.51.49:9101"]
   - job_name: ws
     static_configs:
-      - targets: ["35.202.154.51:9102"]
+      - targets: ["3.110.51.49:9102"]
   - job_name: db_poller
     static_configs:
-      - targets: ["35.202.154.51:9103"]
+      - targets: ["3.110.51.49:9103"]
