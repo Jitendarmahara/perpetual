@@ -218,11 +218,16 @@ async function processMessage(parsed: any) {
   }
 }
 
-let lastId = lastSnapshotId ?? "$";
+// On a FRESH start (no snapshot) begin from "0" (start of the retained stream),
+// not "$" (only-new). Otherwise, if the market process already funded the bots
+// (INITIALIZE_BALANCE/ON_RAMP) in the ~1-2s before the engine reached its first
+// xRead, those one-time events are missed forever and every bot order is then
+// rejected for "Insufficient funds" -> permanently empty order book. Starting
+// at "0" replays whatever is retained so the funding is always picked up.
+let lastId = lastSnapshotId ?? "0";
 
-// Replay everything that landed on input_stream after the snapshot but
-// before the crash, silently (replayState.active suppresses publishing),
-// before falling through to the live loop below.
+// Replay everything already on input_stream up to now, silently
+// (replayState.active suppresses publishing), before the live loop below.
 if (lastId !== "$") {
   replayState.active = true;
   while (true) {
