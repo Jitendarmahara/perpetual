@@ -1,3 +1,26 @@
+# =============================================================================
+# RAM / OOM fixes (the crash: Redis + snapshots + other services fill RAM).
+#
+# 1. Redis: now capped + snapshots off via deploy/redis.conf (see redis block).
+# 2. HOST swap file  -- do this on the VM, biggest single win on a small box:
+#      sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+#      sudo mkswap /swapfile && sudo swapon /swapfile
+#      echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+# 3. HOST sysctl so Redis bg ops never fail on memory:
+#      echo 'vm.overcommit_memory = 1' | sudo tee /etc/sysctl.d/99-redis.conf
+#      sudo sysctl -p /etc/sysctl.d/99-redis.conf
+# 4. Postgres capped below. Add mem_limit to other services AFTER measuring
+#    their real footprint with `docker stats` (too-low a cap OOM-restarts them).
+#
+# NOTE: postgres kept on pg16 on purpose -- bumping the major breaks the
+# existing postgres_data volume (needs pg_upgrade). `latest-pg16` already pulls
+# the newest TimescaleDB for PG16.
+#
+# WARNING: the `frontend` service runs `next build` at every container start
+# (see its command). A Next.js build can spike to 1-2 GB RAM -- a likely second
+# OOM source. Prefer building the frontend at IMAGE-build time and running only
+# `next start` here.
+# =============================================================================
 services:
   postgres:
     image: timescale/timescaledb:latest-pg16
@@ -12,17 +35,26 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    mem_limit: 512m
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
+    # Load the tuned config (maxmemory + noeviction + snapshots OFF). WITHOUT
+    # this, Redis ran with defaults = no memory cap + RDB snapshots on, which is
+    # what filled RAM and OOM-killed the box. See deploy/redis.conf.
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
+    # Hard container cap just above redis.conf's maxmemory (192mb), leaving room
+    # for Redis overhead/fragmentation. Raise both together if you need more.
+    mem_limit: 256m
     restart: unless-stopped
 
   migrate:
@@ -64,15 +96,21 @@ services:
 
   frontend:
     image: jiten56/preps-frontend:latest
-    command: sh -c "bunx next build && bunx next start -p 3001 -H 0.0.0.0"
+    # No `next build` here anymore -- the image is prebuilt (apps/frontend/
+    # Dockerfile), so startup just runs `next start` (the image CMD). This
+    # removes the 1-2 GB build spike that OOM'd the VM on every boot.
+    # NOTE: NEXT_PUBLIC_API_BASE_URL / NEXT_PUBLIC_WS_BASE_URL are baked into
+    # the client bundle at BUILD time -- pass them as --build-arg when you build
+    # the image, not here (runtime env can't change an already-built bundle).
     ports:
       - "3001:3001"
     environment:
-      NEXT_PUBLIC_API_BASE_URL: https://api.thinks.live
-      NEXT_PUBLIC_WS_BASE_URL: wss://ws.thinks.live
+      # Server-side only: next.config rewrites /api/v1/* to the internal backend.
+      API_INTERNAL_URL: http://backend:3000
     depends_on:
       - backend
       - ws
+    mem_limit: 384m
     restart: unless-stopped
 
   engine:
@@ -124,7 +162,7 @@ services:
     restart: unless-stopped
 
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.11-alpine
     ports:
       - "80:80"
       - "443:443"

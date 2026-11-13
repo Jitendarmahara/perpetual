@@ -46,7 +46,9 @@ type StreamResponse = {
 // Single chokepoint for direct events_stream writes — stays silent during replay.
 async function publishEvent(data: Record<string, unknown>) {
   if (replayState.active) return;
-  await redisclient.xAdd("events_stream", "*", { data: JSON.stringify(data) });
+  await redisclient.xAdd("events_stream", "*", { data: JSON.stringify(data) }, {
+    TRIM: { strategy: "MAXLEN", strategyModifier: "~", threshold: 10000 },
+  });
 }
 
 async function processMessage(parsed: any) {

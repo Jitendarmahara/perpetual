@@ -246,7 +246,9 @@ async function waitForInitialPrices(livePrices: LivePrices) {
 }
 
 async function push(client: RedisClient, data: Record<string, unknown>) {
-  await client.xAdd("input_stream", "*", { data: JSON.stringify(data) });
+  await client.xAdd("input_stream", "*", { data: JSON.stringify(data) }, {
+    TRIM: { strategy: "MAXLEN", strategyModifier: "~", threshold: 10000 },
+  });
 }
 
 async function initializeBots(client: RedisClient) {

@@ -29,7 +29,9 @@ export async function PublishEngineEvents(events: EngineStreamEvent[]) {
   if (replayState.active) return;
   const c = await getClient();
   for (const event of events) {
-    await c.xAdd("events_stream", "*", { data: JSON.stringify(event) });
+    await c.xAdd("events_stream", "*", { data: JSON.stringify(event) }, {
+      TRIM: { strategy: "MAXLEN", strategyModifier: "~", threshold: 10000 },
+    });
   }
 }
 

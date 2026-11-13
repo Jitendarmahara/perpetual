@@ -1,3 +1,4 @@
+import { rename } from "node:fs/promises";
 import { Orderbook, Balance, Position } from "../stor/echangestore";
 
 const SNAPSHOT_PATH =
@@ -32,7 +33,12 @@ export async function takeSnapshot(lastProcessedId: string) {
     },
     replacer,
   );
-  await Bun.write(SNAPSHOT_PATH, body);
+  // Write-and-rename so a crash mid-write can never leave a truncated /
+  // unparseable snapshot.json (which would crash-loop the engine on restart).
+  // rename() within the same dir is atomic on POSIX.
+  const tmpPath = `${SNAPSHOT_PATH}.tmp`;
+  await Bun.write(tmpPath, body);
+  await rename(tmpPath, SNAPSHOT_PATH);
 }
 
 // Returns the input_stream id the snapshot was taken at, or null if there's
