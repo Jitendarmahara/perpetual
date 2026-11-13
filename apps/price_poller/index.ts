@@ -64,6 +64,8 @@ function PushPrices() {
             market: key,
             price: value,
           }),
+        }, {
+          TRIM: { strategy: "MAXLEN", strategyModifier: "~", threshold: 10000 },
         });
       }
     } catch (error) {

@@ -109,4 +109,13 @@ async function pollForever() {
 }
 
 await createConsumerGroup();
+// Periodically retry delivered-but-unacked messages. When saveEvent throws
+// (e.g. a transient Postgres error) the message is never acked, so it stays in
+// the consumer-group PEL. pollForever only drains pending once at startup, so
+// without this those messages would sit in the PEL forever — slow Redis memory
+// growth AND those fills/orders never reach Postgres. saveEvent is idempotent
+// (upserts / ON CONFLICT DO NOTHING), so re-processing is safe.
+setInterval(() => {
+  void drainpendingmessages();
+}, 30_000);
 await pollForever();

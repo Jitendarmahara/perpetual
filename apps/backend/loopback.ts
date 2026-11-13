@@ -31,6 +31,8 @@ export async function Loopback(message: Record<string, unknown>) {
   try {
     await redis_client.xAdd("input_stream", "*", {
       data: JSON.stringify(message),
+    }, {
+      TRIM: { strategy: "MAXLEN", strategyModifier: "~", threshold: 10000 },
     });
   } catch (error) {
     clearTimeout(timeoutId);

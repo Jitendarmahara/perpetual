@@ -96,15 +96,21 @@ services:
 
   frontend:
     image: jiten56/preps-frontend:latest
-    command: sh -c "bunx next build && bunx next start -p 3001 -H 0.0.0.0"
+    # No `next build` here anymore -- the image is prebuilt (apps/frontend/
+    # Dockerfile), so startup just runs `next start` (the image CMD). This
+    # removes the 1-2 GB build spike that OOM'd the VM on every boot.
+    # NOTE: NEXT_PUBLIC_API_BASE_URL / NEXT_PUBLIC_WS_BASE_URL are baked into
+    # the client bundle at BUILD time -- pass them as --build-arg when you build
+    # the image, not here (runtime env can't change an already-built bundle).
     ports:
       - "3001:3001"
     environment:
-      NEXT_PUBLIC_API_BASE_URL: https://api.thinks.live
-      NEXT_PUBLIC_WS_BASE_URL: wss://ws.thinks.live
+      # Server-side only: next.config rewrites /api/v1/* to the internal backend.
+      API_INTERNAL_URL: http://backend:3000
     depends_on:
       - backend
       - ws
+    mem_limit: 384m
     restart: unless-stopped
 
   engine:
